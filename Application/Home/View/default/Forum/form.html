@@ -7,15 +7,9 @@
             
             <div class="tab-content">
 			<!-- 表单 -->
-			<form id="form" action="" method="post"
-				class="form-horizontal">
-				<!-- 基础文档模型 -->
-				<volist name=":parse_config_attr($model['field_group'])" id="group">
-				<div id="tab{$key}" class="tab-pane <eq name="key" value="1">
-					in
-					</eq>
-					tab{$key}">
-					<volist name="fields[$key]" id="field"> <if
+			<form id="form" action="" method="post" class="form-horizontal">
+
+					<volist name="fields" id="field"> <if
 						condition="$field['is_show'] == 4"> <input type="hidden"
 						class="text input-large" name="{$field.name}"
 						value="{$data[$field['name']]}"> </if> <if
@@ -73,7 +67,7 @@
 								<div class="upload-img-box">
 									<notempty name="data[$field['name']]">
 									<div class="upload-pre-item">
-										<img src="__ROOT__{$data[$field['name']]|get_cover='path'}" />
+										<img src="{$data[$field['name']]|get_cover_url}" />
 									</div>
 									</notempty>
 								</div>
@@ -156,8 +150,7 @@
 						</div>
 					</div>
 					</if> </volist>
-				</div>
-				</volist>
+
 				<div class="form-item cf">
 					<input type="hidden" name="id" value="{$data.id}">
 					<button class="home_btn submit-btn ajax-post" id="submit"

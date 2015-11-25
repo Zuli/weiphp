@@ -7,6 +7,11 @@
 // | Author: 麦当苗儿 <zuojiazi@vip.qq.com> <http://www.zjzit.cn>
 // +----------------------------------------------------------------------
 error_reporting ( E_ERROR );
+// /调试、找错时请去掉///前空格
+//ini_set ( 'display_errors', true );
+//error_reporting ( E_ALL );
+//set_time_limit ( 0 );
+
 date_default_timezone_set ( 'PRC' );
 if (version_compare ( PHP_VERSION, '5.3.0', '<' ))
 	die ( 'Your PHP Version is ' . PHP_VERSION . ', But WeiPHP require PHP > 5.3.0 !' );
@@ -38,10 +43,14 @@ if (! empty ( $_GET ['echostr'] ) && ! empty ( $_GET ["signature"] ) && ! empty 
  * 项目正式部署后请设置为false
  */
 define ( 'APP_DEBUG', false );
+define ( 'SHOW_ERROR', false );
+
+define ( 'IN_WEIXIN', false );
+define ( 'DEFAULT_TOKEN', '-1' ); 
 
 /**
  * 官方远程同步服务器地址
- * 应用于后台应用商店、在线升级等功能
+ * 应用于后台应用商店、在线升级，配置教程等功能
  */
 define ( 'REMOTE_BASE_URL', 'http://www.weiphp.cn' );
 
@@ -53,7 +62,7 @@ define ( 'SITE_PATH', dirname ( __FILE__ ) );
  */
 define ( 'APP_PATH', './Application/' );
 
-if (! is_file ( APP_PATH . 'User/Conf/config.php' )) {
+if (! is_file ( SITE_PATH.'/Data/install.lock' )) {
 	header ( 'Location: ./install.php' );
 	exit ();
 }

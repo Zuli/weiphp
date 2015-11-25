@@ -14,7 +14,7 @@ namespace Admin\Controller;
  * @author 凡星
  */
 class PublicLinkController extends AdminController {
-	var $table = 'member_public_link';
+	var $table = 'public_link';
 	function lists() {
 		$addon_list = D ( 'Home/Addons' )->getWeixinList ( true );
 		foreach ( $addon_list as $v ) {
@@ -28,7 +28,7 @@ class PublicLinkController extends AdminController {
 		if (! empty ( $_GET ['title'] )) {
 			$title = I ( 'get.title' );
 			$where = "nickname like '%$title%'";
-			$uids = M ( 'member' )->where ( $where )->field ( 'uid' )->select ();
+			$uids = M ( 'user' )->where ( $where )->field ( 'uid' )->select ();
 			$uids = getSubByKey ( $uids, 'uid' );
 			$uids [] = 0;
 			$map ['uid'] = array (
@@ -41,7 +41,7 @@ class PublicLinkController extends AdminController {
 		$list_data = $this->_get_model_list ( $model );
 		foreach ( $list_data ['list_data'] as &$vo ) {
 			$vo ['addon_status'] = explode ( ',', $vo ['addon_status'] );
-			$vo ['addon_status'] = array_diff ( $all_ids, $vo ['addon_status'] );
+			$vo ['addon_status'] = array_diff ( (array)$all_ids, (array)$vo ['addon_status'] );
 			$vo ['addon_status'] = $this->_idToName ( $vo ['addon_status'], $nameArr );
 		}
 		
@@ -89,7 +89,7 @@ class PublicLinkController extends AdminController {
 			foreach ( $addon_list as $v ) {
 				$all_ids [] = $v ['id'];
 			}
-			$_POST ['addon_status'] = array_diff ( $all_ids, $_POST ['addon_status'] );
+			$_POST ['addon_status'] = array_diff ( (array)$all_ids, (array)$_POST ['addon_status'] );
 			
 			$Model = D ( parse_name ( get_table_name ( $model ['id'] ), 1 ) );
 			// 获取模型的字段信息
@@ -101,14 +101,14 @@ class PublicLinkController extends AdminController {
 			}
 		} else {
 			$fields = get_model_attribute ( $model ['id'] );
-			$this->_deal_addon ( $fields [1] [1], $_POST ['mp_id'] );
+			$this->_deal_addon ( $fields, $_POST ['mp_id'] );
 			
 			// 获取数据
 			$data = M ( get_table_name ( $model ['id'] ) )->find ( $id );
 			$data || $this->error ( '数据不存在！' );
 			
 			$data ['addon_status'] = explode ( ',', $data ['addon_status'] );
-			$data ['addon_status'] = array_diff ( $fields [1] [1] ['value'], $data ['addon_status'] );
+			$data ['addon_status'] = array_diff ( (array)$fields ['value'], (array)$data ['addon_status'] );
 			
 			$this->assign ( 'fields', $fields );
 			$this->assign ( 'data', $data );
@@ -124,7 +124,7 @@ class PublicLinkController extends AdminController {
 			foreach ( $addon_list as $v ) {
 				$all_ids [] = $v ['id'];
 			}
-			$_POST ['addon_status'] = array_diff ( $all_ids, $_POST ['addon_status'] );
+			$_POST ['addon_status'] = array_diff ( (array)$all_ids, (array)$_POST ['addon_status'] );
 			
 			$Model = D ( parse_name ( get_table_name ( $model ['id'] ), 1 ) );
 			// 获取模型的字段信息
@@ -136,7 +136,7 @@ class PublicLinkController extends AdminController {
 			}
 		} else {
 			$fields = get_model_attribute ( $model ['id'] );
-			$this->_deal_addon ( $fields [1] [1], $_POST ['mp_id'] );
+			$this->_deal_addon ( $fields, $_POST ['mp_id'] );
 			
 			$this->assign ( 'fields', $fields );
 			$this->meta_title = '新增' . $model ['title'];

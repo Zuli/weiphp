@@ -17,8 +17,8 @@ use Think\Model;
  */
 class AuthGroupModel extends Model {
     const TYPE_ADMIN                = 1;                   // 管理员用户组类型标识
-    const MEMBER                    = 'member';
-    const UCENTER_MEMBER            = 'ucenter_member';
+    const MEMBER                    = 'user';
+    const UCENTER_MEMBER            = 'user';
     const AUTH_GROUP_ACCESS         = 'auth_group_access'; // 关系表表名
     const AUTH_EXTEND               = 'auth_extend';       // 动态权限扩展信息表
     const AUTH_GROUP                = 'auth_group';        // 用户组表名
@@ -62,12 +62,12 @@ class AuthGroupModel extends Model {
         }
 
         $uid_arr = explode(',',$uid);
-		$uid_arr = array_diff($uid_arr,array(C('USER_ADMINISTRATOR')));
+		$uid_arr = array_diff((array)$uid_arr,array(C('USER_ADMINISTRATOR')));
         $add = array();
         if( $del!==false ){
             foreach ($uid_arr as $u){
             	//判断用户id是否合法
-            	if(M('Member')->getFieldByUid($u,'uid') == false){
+            	if(M('User')->getFieldByUid($u,'uid') == false){
             		$this->error = "编号为{$u}的用户不存在！";
             		return false;
             	}
@@ -258,7 +258,7 @@ class AuthGroupModel extends Model {
      * 
      * @author 朱亚杰 <zhuyajie@topthink.net>
      */
-    static public function memberInGroup($group_id){
+    static public function userInGroup($group_id){
         $prefix   = C('DB_PREFIX');
         $l_table  = $prefix.self::MEMBER;
         $r_table  = $prefix.self::AUTH_GROUP_ACCESS;
@@ -291,7 +291,7 @@ class AuthGroupModel extends Model {
         if(count($s)===$count){
             return true;
         }else{
-            $diff = implode(',',array_diff($mid,$s));
+            $diff = implode(',',array_diff((array)$mid,(array)$s));
             $this->error = $msg.$diff;
             return false;
         }

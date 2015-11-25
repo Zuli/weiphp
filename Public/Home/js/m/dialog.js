@@ -25,26 +25,28 @@
 	}
 	function createDialog(){
 		if (!elemDialog){
-			if (!elemDialog){
+			
 					elemDialog = $('<div class="dialog">'+
 						'<div class="dialog_content"></div>'+
 						'</div>');
+					
 					elemContent = $('.dialog_content', elemDialog);
 					$('body').append(elemDialog);
-					elemDialog.fadeIn(300)
-				}
+					elemDialog.show();
+					
+				
 		}
 	}
 	function open(){
-		elemDialog.fadeIn();
-		elemOverlay.fadeIn();
-		$('select').hide();
+		elemDialog.show();
+		elemOverlay.show();
+		//$('select').hide();
 	}
 	function close(){
-		elemDialog.fadeOut();
-		if(elemOverlay)elemOverlay.fadeOut();
+		elemDialog.hide();
+		if(elemOverlay)elemOverlay.hide();
 		elemContent.empty();
-		$('select').show();
+		//$('select').show();
 	}
 	
 	function setHtml(html){
@@ -70,6 +72,48 @@
 				$.Dialog.close();
 				},2000)
 			},
+		confirm:function(title,msg,callback,jump_url){
+				var _title = title;
+				var _msg = msg;
+				var tempHtml =$("<div class='dialog_confirm'><p class='title'>"+title+"</p><p class='msg'></p><p class='btnWrap'><a href='javascript:;' class='confirmBtn'>确定</a></p></div>");
+				$('.msg',tempHtml).append(msg);
+				this.open(tempHtml);
+				$('.confirmBtn',tempHtml).click(function(){
+					if(callback){
+						callback();
+					}else if(jump_url){
+					     window.location.href=jump_url;
+					}else{
+						$.Dialog.close();	
+					}
+				});
+			},	
+		confirmBox:function(title,msg,opts){
+				var _title = title;
+				var _msg = msg;
+				var leftText = "否";
+				var rightText = "是"
+				if(opts){
+					leftText = opts.leftBtnText || "否";
+					rightText = opts.rightBtnText || "是"
+				}
+				var tempHtml =$("<div class='dialog_confirm'><p class='title'>"+title+"</p><p class='msg'>"+_msg+"</p><p class='btnWrap'><a href='javascript:;' class='leftBtn'>"+leftText+"</a><a href='javascript:;' class='rightBtn'>"+rightText+"</a></p></div>");
+				this.open(tempHtml);
+				$('.rightBtn',tempHtml).click(function(){
+					if(opts && opts.rightCallback){
+						opts.rightCallback();
+					}else{
+						$.Dialog.close();	
+					}
+				});
+				$('.leftBtn',tempHtml).click(function(){
+					if(opts && opts.leftCallback){
+						opts.leftCallback();
+					}else{
+						$.Dialog.close();	
+					}
+				});
+			},	
 		open: function(html){
 			init();
 			setHtml(html);
@@ -77,5 +121,7 @@
 		},
 		close: close
 	};
-	$.extend({Dialog: Dialog});
+	
+	$.extend($,{Dialog: Dialog});
+	
 })();

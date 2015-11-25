@@ -8,8 +8,6 @@
 // +----------------------------------------------------------------------
 namespace Home\Controller;
 
-use User\Api\UserApi;
-
 /**
  * 用户控制器
  * 包括用户中心，用户登录及注册
@@ -19,39 +17,95 @@ class UserController extends HomeController {
 	/* 用户中心首页 */
 	public function index() {
 	}
-	
 	/* 注册页面 */
-	public function register($username = '', $password = '', $repassword = '', $email = '', $verify = '') {
+	public function register($username = '', $password = '', $repassword = '', $mobile = '', $truename = '', $email = '', $verify = '') {
 		if (! C ( 'USER_ALLOW_REGISTER' )) {
 			$this->error ( '注册已关闭' );
 		}
 		if (IS_POST) { // 注册用户
+			$username = trim ( $username );
+			$hasusername = D ( 'Common/User' )->where ( array (
+					'nickname' => $username 
+			) )->getfield ( 'uid' );
+			/* 测试用户名 */
+			if (empty ( $username )) {
+				$this->error ( '用户名不能为空！' );
+			}else if (!preg_match('/[a-zA-Z0-9_]$/', $username)) {
+				$this->error ( '用户名必须由‘字母’、‘数字’、‘_’组成！' );
+			}else if (strlen ( $username ) > 16) {
+				$this->error ( '用户名长度必须在16个字符以内！' );
+			} else if ($hasusername) {
+				$this->error ( '该用户名已经存在，请重新填写用户名！' );
+			}
+			/* 检测密码 */
+			if (strlen ( $password ) < 6 || strlen ( $password ) > 30) {
+				$this->error ( '密码长度必须在6-30个字符之间！' );
+			}
+			if ($password != $repassword) {
+				$this->error ( '密码和重复密码不一致！' );
+			}
+			/* 测试手机号 */
+			// if (! preg_match ( '/^(13[0-9]|15[0|3|6|7|8|9]|18[8|9])\d{8}$/', $mobile )) {
+			// $this->error ( '手机格式不正确！' );
+			// }
+			if (empty($mobile)){
+			    $this->error('手机号码不能为空');
+			}
+			if (strlen ( $mobile ) != 11) {
+				$this->error ( '手机格式不正确！' );
+			}
+			/* 测试联系人 */
+			if (empty ( $truename )) {
+				$this->error ( '联系人不能为空！' );
+			}
+			/* 测试邮箱 */
+			if (empty($email)){
+			    $this->error('邮箱不能为空');
+			}
+			if (! preg_match ( '/^(\w)+(\.\w+)*@(\w)+((\.\w+)+)$/', $email )) {
+				$this->error ( '邮箱格式不正确！' );
+			}
+			
 			/* 检测验证码 */
 			if (! check_verify ( $verify )) {
 				$this->error ( '验证码输入错误！' );
 			}
-			
-			/* 检测密码 */
-			if ($password != $repassword) {
-				$this->error ( '密码和重复密码不一致！' );
-			}
+			// CHECKOUT
+// 			$map ['code'] = I ( 'invite_code' );
+// 			if (empty ( $map ['code'] )) {
+// 				$this->error ( '内测码不能为空！' );
+// 			}
+// 			if (! M ( 'invite_code' )->where ( $map )->find ()) {
+// 				$this->error ( '内测码不正确！' );
+// 			}
 			
 			/* 调用注册接口注册用户 */
-			$User = new UserApi ();
-			$uid = $User->register ( $username, $password, $email );
-			if (0 < $uid) { // 注册成功
-			                // TODO: 发送验证邮件
-			                
+			$uid = D ( 'Common/User' )->register ( $username, $password, $email, $mobile, $truename );
+			
+			if (0 < $uid) {
+				M ( 'invite_code' )->where ( $map )->delete ();
+				// 注册成功
+				// TODO: 发送验证邮件
 				// 关联默认可管理的公众号
 				$public = C ( 'DEFAULT_PUBLIC' );
 				$publicArr = array_filter ( explode ( ',', $public ) );
 				foreach ( $publicArr as $p ) {
 					$data ['uid'] = $uid;
 					$data ['mp_id'] = $p;
-					M ( 'member_public_link' )->add ( $data );
+					M ( 'public_link' )->add ( $data );
 				}
 				
-				$this->success ( '注册成功，请登录', U ( 'login' ) );
+				// 自动加入公众号管理组
+				$access ['uid'] = $uid;
+				$access ['group_id'] = 3; // TODO 后续可优化为自动获取
+				M ( 'auth_group_access' )->add ( $access );
+				
+				// $this->success ( '注册成功，请登录', U ( 'login' ) );
+				$user ['uid'] = $uid;
+				$user ['username'] = $username;
+				
+				D ( 'Common/User' )->autoLogin ( $user );
+				$this->success ( '恭喜，注册成功！', U ( 'Home/Public/add', array('from'=>3) ) );
 			} else { // 注册失败，显示错误信息
 				$this->error ( $this->showRegError ( $uid ) );
 			}
@@ -69,40 +123,33 @@ class UserController extends HomeController {
 			}
 			
 			/* 调用UC登录接口登录 */
-			$user = new UserApi ();
-			$uid = $user->login ( $username, $password );
-			if (0 < $uid) { // UC登录成功
-				/* 登录用户 */
-				$Member = D ( 'Member' );
-				if ($Member->login ( $uid )) { // 登录用户
-					$url = Cookie ( '__forward__' );
-					if ($url) {
-						Cookie ( '__forward__', null );
-					} else {
-						$url = U ( 'Home/Index/main' );
-					}
-					
-					session ( 'is_follow_login', null );
-					
-					$this->success ( '登录成功！', $url );
-				} else {
-					$this->error ( $Member->getError () );
-				}
-			} else { // 登录失败
-				switch ($uid) {
-					case - 1 :
-						$error = '用户不存在或被禁用！';
-						break; // 系统级别禁用
-					case - 2 :
-						$error = '密码错误！';
-						break;
-					default :
-						$error = '未知错误！';
-						break; // 0-接口参数错误（调试阶段使用）
-				}
-				$this->error ( $error );
+			$dao = D ( 'Common/User' );
+			$uid = $dao->login ( $username, $password );
+			if (! $uid) { // 登录失败
+				$this->error ( $dao->getError () );
+				exit ();
 			}
+			
+			$url = Cookie ( '__forward__' );
+			if ($url) {
+				Cookie ( '__forward__', null );
+			} else {
+				$url = U ( 'Home/Index/index' );
+			}
+			
+			if (C ( 'DIV_DOMAIN' )) {
+				$map ['uid'] = $uid;
+				$domain = D ( 'Common/Public' )->where ( $map )->getField ( 'domain' );
+				$url = chang_domain ( $url, $domain );
+			}
+			$this->success ( '登录成功！', $url );
 		} else { // 显示登录表单
+			if (isMobile ()) {
+				// 跳转到手机版的个人空间
+				redirect ( addons_url ( 'UserCenter://Wap/userCenter', array (
+						'from' => 1 
+				) ) );
+			}
 			$html = 'login';
 			$_GET ['from'] == 'store' && $html = 'simple_login';
 			
@@ -113,8 +160,13 @@ class UserController extends HomeController {
 	/* 退出登录 */
 	public function logout() {
 		if (is_login ()) {
-			D ( 'Member' )->logout ();
-			$this->success ( '退出成功！', U ( 'User/login' ) );
+			D ( 'Common/User' )->logout ();
+			
+			if (isset ( $_GET ['no_tips'] )) {
+				$this->redirect ( 'User/login' );
+			}
+			$this->redirect ( 'User/login' );
+			// $this->success ( '退出成功！', U ( 'User/login' ) );
 		} else {
 			$this->redirect ( 'User/login' );
 		}
@@ -181,7 +233,7 @@ class UserController extends HomeController {
 	 */
 	public function profile() {
 		if (! is_login ()) {
-			$this->error ( '您还没有登录', U ( 'User/login' ) );
+			$this->error ( '您还没有登陆', U ( 'User/login' ) );
 		}
 		if (IS_POST) {
 			// 获取参数
@@ -196,13 +248,15 @@ class UserController extends HomeController {
 			if ($data ['password'] !== $repassword) {
 				$this->error ( '您输入的新密码与确认密码不一致' );
 			}
-			
-			$Api = new UserApi ();
-			$res = $Api->updateInfo ( $uid, $password, $data );
-			if ($res ['status']) {
+			$isUser=get_userinfo($uid,'manager_id');
+			if ($isUser){
+			    $data['login_password']=$data ['password'];
+			}
+			$res = D ( 'Common/User' )->updateUserFields ( $uid, $password, $data );
+			if ($res !== false) {
 				$this->success ( '修改密码成功！' );
 			} else {
-				$this->error ( $res ['info'] );
+				$this->error ( '修改密码失败！' );
 			}
 		} else {
 			$this->display ();

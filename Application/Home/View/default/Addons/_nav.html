@@ -2,6 +2,18 @@
   <volist name='nav' id='vo'>
     <li class="{$vo.class}"><a href="{$vo.url}">{$vo.title}<span class="arrow fa fa-sort-up"></span></a></li>
   </volist>
+  
+  <php>
+  if (defined ( '_ADDONS' )) {
+      $page = _ADDONS . '_' . _CONTROLLER . '_' . _ACTION;
+  } else {
+      $page = MODULE_NAME . '_' . CONTROLLER_NAME . '_' . ACTION_NAME;
+  }
+  $url = wp_file_get_contents ( REMOTE_BASE_URL . '/index.php?s=/Home/Index/getDocUrl/page/' . $page );
+  if (strpos($url,'http')==0) {
+  </php>
+  <span class="fr" style="margin:10px;"><a href="{$url}"><b style="font-size:16px;" class="fa fa-question-circle"></b>查看配置教程</a></span>
+  <php> } </php>
 </ul>
 <if condition="!empty($sub_nav)">
 <div class="sub-tab-nav">
@@ -9,8 +21,6 @@
        <volist name="sub_nav" id="vo">
           <li><a class="{$vo.class}" href="{$vo.url}">{$vo.title}<span class="arrow fa fa-sort-up"></span></a></li>
        </volist>
-<!--          <li><a class="cur" href="{:addons_url('WeiSite://footer/lists')}">底部菜单配置</a></li>
-          <li><a href="{:addons_url('WeiSite://footer/template')}">底部菜单模板</a></li>-->
       </ul>
 </div> 
 </if>

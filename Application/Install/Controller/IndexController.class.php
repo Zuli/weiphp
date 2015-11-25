@@ -12,32 +12,33 @@ use Think\Controller;
 use Think\Storage;
 
 class IndexController extends Controller{
-	//安装首页
-	public function index(){
-		if(Storage::has(MODULE_PATH . 'Data/install.lock')){
-			$this->error('已经成功安装了WeiPHP，请不要重复安装!');
-		}
-		session('step', 0);
-		session('error', false);
-		$this->display();
-	}
+    //安装首页
+    public function index(){
+        if(Storage::has('./Data/install.lock')){
+            $this->error('已经安装过，请删除Data/install.lock再安装');
+        }
+        $this->display();
+    }
 
-	//安装完成
-	public function complete(){
-		$step = session('step');
+    //安装完成
+    public function complete(){
+        $step = session('step');
 
-		if(!$step){
-			$this->redirect('index');
-		} elseif($step != 3) {
-			$this->redirect("Install/step{$step}");
-		}
+        if(!$step){
+            $this->redirect('index');
+        } elseif($step != 3) {
+            $this->redirect("Install/step{$step}");
+        }
 
-		Storage::put(MODULE_PATH . 'Data/install.lock', 'lock');
-		//创建配置文件
-		$this->assign('info',session('config_file'));
-
-		session('step', null);
-		session('error', null);
-		$this->display();
-	}
+        // 写入安装锁定文件
+        Storage::put('./Data/install.lock', 'lock');
+        if(!session('update')){
+            //创建配置文件
+            $this->assign('info',session('config_file'));
+        }
+        session('step', null);
+        session('error', null);
+        session('update',null);
+        $this->display();
+    }
 }

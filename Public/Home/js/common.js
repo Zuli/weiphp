@@ -28,4 +28,5 @@ $(function(){
 			$("#nav").children().first().addClass("current");
 		}
 	})();
+	
 });

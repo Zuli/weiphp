@@ -9,7 +9,6 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 namespace Think\Template\Driver;
-defined('THINK_PATH') or exit();
 /**
  * Smarty模板引擎驱动 
  */

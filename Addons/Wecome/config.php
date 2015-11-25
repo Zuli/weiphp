@@ -36,6 +36,11 @@ return array (
 				'type' => 'text',
 				'value' => '',
 				'tip' => '点击图文消息跳转链接' 
-		) 
+		) ,
+        'appmsg_id' => array (
+				'title' => '选择图文素材:',
+				'type' => 'hidden',
+				'value' => '' 
+		),
 );
 					

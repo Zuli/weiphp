@@ -41,44 +41,41 @@ class CreditFollowController extends HomeController {
 		$this->assign ( 'check_all', false );
 		$this->assign ( 'search_button', false );
 		
-		$model = $this->getModel ( 'follow' );
+		$model = $this->getModel ( 'user' );
 		
 		$map ['token'] = get_token ();
 		if (! empty ( $_REQUEST ['nickname'] )) {
-			$map ['nickname'] = array (
-					'like',
-					'%' . htmlspecialchars ( $_REQUEST ['nickname'] ) . '%' 
-			);
+			$map['uid'] = array('in', D ( 'Common/User' )->searchUser ( $_REQUEST ['nickname'] ));
 		}
 		
-		$list_data = M ( 'follow' )->where ( $map )->order ( 'id DESC' )->selectPage ();
+		$list_data = M ( 'user' )->where ( $map )->order ( 'uid DESC' )->selectPage ();
 		
-		$grid ['field'] [0] = 'id';
+		$grid ['field'] [0] = 'uid';
 		$grid ['title'] = '粉丝编号';
 		$list_data ["list_grids"] [] = $grid;
 		
-		$grid ['field'] [0] = 'openid';
-		$grid ['title'] = 'Openid';
-		$list_data ["list_grids"] [] = $grid;
+		//$grid ['field'] [0] = 'openid';
+		//$grid ['title'] = 'Openid';
+		//$list_data ["list_grids"] [] = $grid;
 		
-		$grid ['field'] [0] = 'nickname';
+		$grid ['field'] [0] = 'nickname|deal_emoji';
 		$grid ['title'] = '昵称';
 		$list_data ["list_grids"] [] = $grid;
 		
 		$grid ['field'] [0] = 'score';
-		$grid ['title'] = '财富值';
+		$grid ['title'] = '金币值';
 		$list_data ["list_grids"] [] = $grid;
 		
 		$grid ['field'] [0] = 'experience';
-		$grid ['title'] = '经验值';
+		$grid ['title'] = '经历值';
 		$list_data ["list_grids"] [] = $grid;
 		
-		$grid ['field'] [0] = 'id';
+		$grid ['field'] [0] = 'uid';
 		$grid ['title'] = '详情';
 		
 		$varController = C ( 'VAR_CONTROLLER' );
 		
-		$grid ['href'] = 'CreditData/lists?uid=[id]&target=_blank|详情';
+		$grid ['href'] = 'CreditData/lists?uid=[uid]&target=_blank|详情';
 		$list_data ["list_grids"] [] = $grid;
 		
 		$this->assign ( $list_data );
@@ -93,6 +90,9 @@ class CreditFollowController extends HomeController {
 			$Model = $this->checkAttr ( $Model, $model ['id'] );
 			if ($Model->create () && $id = $Model->add ()) {
 				$this->_saveKeyword ( $model, $id );
+				
+				// 清空缓存
+				method_exists ( $Model, 'clear' ) && $Model->clear ( $id, 'edit' );
 				
 				$this->success ( '添加' . $model ['title'] . '成功！', U ( 'lists?model=' . $model ['name'] ) );
 			} else {

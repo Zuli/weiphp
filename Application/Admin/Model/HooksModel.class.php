@@ -17,7 +17,8 @@ use Think\Model;
  */
 
 class HooksModel extends Model {
-
+	protected $tableName = 'hooks';
+	
     /**
      * 查找后置操作
      */

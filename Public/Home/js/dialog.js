@@ -40,13 +40,13 @@
 	function open(){
 		elemDialog.fadeIn();
 		elemOverlay.fadeIn();
-		$('select').hide();
+		//$('select').hide();
 	}
 	function close(){
 		elemDialog.fadeOut();
 		if(elemOverlay)elemOverlay.fadeOut();
 		elemContent.empty();
-		$('select').show();
+		//$('select').show();
 	}
 	
 	function setHtml(html){

@@ -18,7 +18,7 @@ use Common\Controller\Addon;
             'author'=>'凡星',
             'version'=>'0.1',
             'has_adminlist'=>1,
-            'type'=>1         
+            'type'=>0         
         );
 
 	public function install() {

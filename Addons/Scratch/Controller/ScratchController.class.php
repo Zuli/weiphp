@@ -10,12 +10,17 @@ class ScratchController extends AddonsController {
 		$model = $this->getModel ();
 		
 		if (IS_POST) {
+			$this->checkPostData ();
+			
 			$Model = D ( parse_name ( get_table_name ( $model ['id'] ), 1 ) );
 			// 获取模型的字段信息
 			$Model = $this->checkAttr ( $Model, $model ['id'] );
 			if ($Model->create () && $Model->save ()) {
 				$this->_saveKeyword ( $model, $id );
 				
+				// 清空缓存
+				method_exists ( $Model, 'clear' ) && $Model->clear ( $id, 'edit' );
+				D ( 'Scratch' )->getScratchInfo ( $id, true );
 				$this->success ( '保存' . $model ['title'] . '成功！', U ( 'lists?model=' . $model ['name'] ) );
 			} else {
 				$this->error ( $Model->getError () );
@@ -27,10 +32,10 @@ class ScratchController extends AddonsController {
 			$data = M ( get_table_name ( $model ['id'] ) )->find ( $id );
 			$data || $this->error ( '数据不存在！' );
 			
-		$token = get_token ();
-		if (isset ( $data ['token'] ) && $token != $data ['token'] && defined ( 'ADDON_PUBLIC_PATH' )) {
-			$this->error ( '非法访问！' );
-		}			
+			$token = get_token ();
+			if (isset ( $data ['token'] ) && $token != $data ['token'] && defined ( 'ADDON_PUBLIC_PATH' )) {
+				$this->error ( '非法访问！' );
+			}
 			
 			$this->assign ( 'fields', $fields );
 			$this->assign ( 'data', $data );
@@ -41,15 +46,44 @@ class ScratchController extends AddonsController {
 			$this->display ();
 		}
 	}
+	function checkPostData() {
+		if (! I ( 'post.keyword' )) {
+			$this->error ( '关键词不能为空' );
+		}
+		if (! I ( 'post.title' )) {
+			$this->error ( '标题不能为空' );
+		}
+		if (! I ( 'post.use_tips' )) {
+			$this->error ( '使用说明不能为空' );
+		}
+		if (! I ( 'post.end_tips' )) {
+			$this->error ( '过期说明不能为空' );
+		}
+		if (! I ( 'post.start_time' )) {
+			$this->error ( '请选择开始时间' );
+		} else if (! I ( 'post.end_time' )) {
+			$this->error ( '请选择结束时间' );
+		} else if (strtotime ( I ( 'post.start_time' ) ) > strtotime ( I ( 'post.end_time' ) )) {
+			$this->error ( '开始时间不能大于结束时间' );
+		}
+		if (I ( 'post.predict_num' ) <= 0) {
+			$this->error ( '预计参与人数必须大于0！' );
+		}
+	}
 	function add() {
 		$model = $this->getModel ();
 		if (IS_POST) {
+			$this->checkPostData ();
+			
 			$Model = D ( parse_name ( get_table_name ( $model ['id'] ), 1 ) );
 			// 获取模型的字段信息
 			$Model = $this->checkAttr ( $Model, $model ['id'] );
 			if ($Model->create () && $id = $Model->add ()) {
 				$this->_saveKeyword ( $model, $id );
 				
+				// 清空缓存
+				method_exists ( $Model, 'clear' ) && $Model->clear ( $id, 'edit' );
+				D ( 'Scratch' )->getScratchInfo ( $id, true );
 				$this->success ( '添加' . $model ['title'] . '成功！', U ( 'lists?model=' . $model ['name'] ) );
 			} else {
 				$this->error ( $Model->getError () );
@@ -75,23 +109,23 @@ class ScratchController extends AddonsController {
 				[微考试:10]，表示完成ID为10的考试就能领取<br/>';
 		$this->assign ( 'normal_tips', $normal_tips );
 	}
-	function preview() {
-		$this->show ();
-	}
-	function show() {
-		$id = $map ['target_id'] = I ( 'id' );
-		
-		$data = M ( 'scratch' )->find ( $id );
+	// 异步加载刮刮卡数据
+	function ajax_data() {
+		$public_info = get_token_appinfo ();
+		$this->assign ( 'public_info', $public_info );
+		$id = I ( 'id' );
+		$data = D ( 'Scratch' )->getScratchInfo ( $id );
 		$this->assign ( 'data', $data );
 		// dump($data);
 		
 		// 奖项
-		$map ['addon'] = 'Scratch';
-		$prizes = M ( 'prize' )->where ( $map )->select ();
+		$addon = 'Scratch';
+		$prizes = D ( 'Prize' )->getPrizes ( $id, $addon );
 		$this->assign ( 'prizes', $prizes );
 		
 		// 抽奖记录
-		$all_prizes = M ( 'sn_code' )->where ( $map )->order ( 'id desc' )->select ();
+		// $all_prizes = M ( 'sn_code' )->where ( $map )->order ( 'id desc' )->select ();
+		$all_prizes = D ( 'SnCode' )->getSnCodes ( $id, $addon );
 		// dump ( $all_prizes );
 		foreach ( $all_prizes as $all ) {
 			if ($all ['prize_id'] > 0) {
@@ -112,12 +146,12 @@ class ScratchController extends AddonsController {
 		// dump ( $my_prizes );
 		
 		// 权限判断
-		unset ( $map );
-		$map ['token'] = get_token ();
-		$map ['openid'] = get_openid ();
-		$follow = M ( 'follow' )->where ( $map )->find ();
+		$follow = get_followinfo ( $this->mid );
 		$is_admin = is_login ();
 		$error = '';
+		if ($data ['start_time'] > time ()) {
+			$error = '活动还没开始';
+		}
 		if ($data ['end_time'] <= time ()) {
 			$error = '活动已结束';
 		} else if ($data ['max_num'] > 0 && $data ['max_num'] <= $my_count) {
@@ -135,72 +169,25 @@ class ScratchController extends AddonsController {
 					break;
 			}
 		} else if ($data ['credit_conditon'] > intval ( $follow ['score'] ) && ! $is_admin) {
-			$error = '您的财富值不足';
+			$error = '您的金币值不足';
 		} else if ($data ['credit_bug'] > intval ( $follow ['score'] ) && ! $is_admin) {
-			$error = '您的财富值不够扣除';
+			$error = '您的金币值不够扣除';
 		} else if (! empty ( $data ['addon_condition'] )) {
 			addon_condition_check ( $data ['addon_condition'] ) || $error = '您没权限参与';
 		}
 		$this->assign ( 'error', $error );
 		// 抽奖算法
-		empty ( $error ) && $this->_lottery ( $data, $prizes, $new_prizes, $my_count, $has, $no_count );
-		
-		$this->display ( 'show' );
+		if (empty ( $error )) {
+			$prize = D ( 'Scratch' )->_lottery ( $data, $prizes, $new_prizes, $my_count, $has, $no_count );
+			$prizes = D ( 'Prize' )->getPrizes ( $id, $addon );
+			$prize['img']=get_cover_url($prize['img']);
+			$this->assign ( 'prize', $prize );
+		}
+		$content = $this->fetch ( ONETHINK_ADDON_PATH . 'Scratch/View/default/Scratch/data.html' );
+		$returnData = I ( 'callback' ) . '({"html":"' . rawurlencode ( $content ) . '","prizeJson":"' . rawurlencode ( json_encode ( $prize ) ) . '"})';
+		echo $returnData;
+		exit;
 	}
-	
-	// 抽奖算法 中奖概率 = 奖品总数/(预估活动人数*每人抽奖次数)
-	function _lottery($data, $prizes, $new_prizes, $my_count = 0, $has = array(), $no_count = 0) {
-		$max_num = empty ( $data ['max_num'] ) ? 1 : $data ['max_num'];
-		$count = $data ['predict_num'] * $max_num; // 总基数
-		                                                    // 获取已经中过的奖
-		foreach ( $prizes as $p ) {
-			$prizesArr [$p ['id']] = $p;
-			
-			$prize_num = $p ['num'] - $has [$p ['id']];
-			for($i = 0; $i < $prize_num; $i ++) {
-				$rand [] = $p ['id']; // 中奖的记录，同时通过ID可以知道中的是哪个奖
-			}
-		}
-		// dump ( $rand );
-		// dump ( $prizesArr );
-		
-		if ($data ['predict_num'] != 1) {
-			$remain = $count - count ( $rand ) - $no_count;
-			$remain > 5000 && $remain = 5000; // 防止数组过大导致内存溢出
-			for($i = 0; $i < $remain; $i ++) {
-				$rand [] = 0; // 不中奖的记录
-			}
-		}
-		if (empty ( $rand )) {
-			$rand [] = - 1;
-		}
-		
-		shuffle ( $rand ); // 所有记录随机排序
-		$prize_id = $rand [0]; // 第一个记录作为当前用户的中奖记录
-		$prize = array ();
-		
-		if ($prize_id > 0) {
-			$prize = $prizesArr [$prize_id];
-		} elseif ($prize_id == - 1) {
-			$prize ['id'] = 0;
-			$prize ['title'] = '奖品已抽完';
-		} else {
-			$prize ['id'] = 0;
-			$prize ['title'] = '谢谢参与';
-		}
-
-		// 获取我的抽奖机会
-		if (empty ( $data ['max_num'] )) {
-			$prize ['count'] = 1;
-		} else {
-			$prize ['count'] = $max_num - $my_count - 1;
-			$prize ['count'] < 0 && $prize ['count'] = 0;
-		}
-		
-// 		dump ( $prize );
-		$this->assign ( 'prize', $prize );
-	}
-	
 	// 记录中奖数据到数据库
 	function set_sn_code() {
 		$data ['sn'] = uniqid ();
@@ -208,24 +195,27 @@ class ScratchController extends AddonsController {
 		$data ['cTime'] = time ();
 		$data ['addon'] = 'Scratch';
 		$data ['target_id'] = I ( 'id' );
-		
-		$data ['prize_id'] = $map ['id'] = I ( 'prize_id' );
-		
+		$data ['token'] = get_token ();
+		$data ['prize_id'] = $prize_id = I ( 'prize_id' );
 		$title = '';
-		if (! empty ( $map ['id'] )) {
-			$title = M ( 'prize' )->where ( $map )->getField ( 'title' );
+		if (! empty ( $prize_id )) {
+			// $title = M ( 'prize' )->where ( $map )->getField ( 'title' );
+			$prize = D ( 'Prize' )->getPrizeInfo ( $prize_id );
+			$title = $prize ['title'];
 			$title || $title = '';
 		}
 		$data ['prize_title'] = $title;
 		// dump ( $data );
-		
 		$res = M ( 'sn_code' )->add ( $data );
+		D ( 'SnCode' )->getSnCodes ( $data ['target_id'], $data ['addon'], true );
 		if ($res) {
 			// 更新获取数
-			M ( "scratch" )->where ( 'id=' . $data ['target_id'] )->setInc ( "collect_count" );
-			
+			$scratch = D ( 'Scratch' )->getScratchInfo ( $data ['target_id'] );
+			$s ['collect_count'] = $scratch ['collect_count'] + 1;
+			// M ( "scratch" )->where ( 'id=' . $data ['target_id'] )->setInc ( "collect_count" );
+			D ( 'Scratch' )->updateCount ( $data ['target_id'], $s );
 			// 扣除积分
-			$data = M ( 'scratch' )->find ( $data ['target_id'] );
+			$data = D ( 'Scratch' )->getScratchInfo ( $data ['target_id'] );
 			if (! empty ( $data ['credit_bug'] )) {
 				$credit ['score'] = $data ['credit_bug'];
 				$credit ['experience'] = 0;
@@ -234,4 +224,45 @@ class ScratchController extends AddonsController {
 		}
 		echo $res;
 	}
+	function index() {
+		$id = I ( 'id' );
+		// $data = M ( 'scratch' )->find ( $id );
+		$data = D ( 'Scratch' )->getScratchInfo ( $id );
+		$this->assign ( 'data', $data );
+		// 奖项
+		$addon = 'Scratch';
+		// $prizes = M ( 'prize' )->where ( $map )->select ();
+		$prizes = D ( 'Prize' )->getPrizes ( $id, $addon );
+		$this->assign ( 'prizes', $prizes );
+		
+		$ajaxDataUrl = addons_url ( 'Scratch://Scratch/ajax_data', array (
+				'id' => $data ['id'] 
+		) );
+		$this->assign ( 'ajaxDataUrl', $ajaxDataUrl );
+		// 添加模板目录
+		$this->display ();
+	}
+	function preview(){
+		$vote_id = I ( 'id', 0, 'intval' );
+		$url = U('index',array('id'=>$vote_id));
+		$this -> assign('url',$url);
+		$this->display ( SITE_PATH . '/Application/Home/View/default/Addons/preview.html' );
+	}
+	
+	function lists() {
+	    $isAjax = I ( 'isAjax' );
+	    $isRadio = I ( 'isRadio' );
+	    $model = $this->getModel ( 'scratch' );
+	    $list_data = $this->_get_model_list ( $model, 0, 'id desc', true );
+	    // 		判断该活动是否已经设置投票调查
+	    if ($isAjax) {
+	        $this->assign('isRadio',$isRadio);
+	        $this->assign ( $list_data );
+	        $this->display ( 'ajax_lists_data' );
+	    } else {
+	        $this->assign ( $list_data );
+	        $this->display ();
+	    }
+	}
+	
 }

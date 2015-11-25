@@ -16,50 +16,36 @@ use Think\Controller;
  */
 class AddonsController extends Controller {
 	protected $addons = null;
-	protected $addon, $model;
+	protected $model;
 	function _initialize() {
-		$this->initFollow ();
-		
-		C ( 'EDITOR_UPLOAD.rootPath', './Uploads/Editor/' . get_token () . '/' );
-	}
-	public function execute($_addons = null, $_controller = null, $_action = null) {
-		if (! empty ( $_action ) && ! empty ( $_addons ) && empty ( $_controller )) {
-			$_controller = $_GET ['_controller'] = $_addons;
-			$_REQUEST ['_controller'] = $_REQUEST ['_addons'];
-		}
-		
-		if (C ( 'URL_CASE_INSENSITIVE' )) {
-			$_addons = ucfirst ( parse_name ( $_addons, 1 ) );
-			$_controller = parse_name ( $_controller, 1 );
-		}
-		
-		define ( 'ADDON_PUBLIC_PATH', __ROOT__ . '/Addons/' . $_addons . '/View/default/Public' );
-		defined ( '_ADDONS' ) or define ( '_ADDONS', $_addons );
-		defined ( '_CONTROLLER' ) or define ( '_CONTROLLER', $_controller );
-		defined ( '_ACTION' ) or define ( '_ACTION', $_action );
-		
 		$token = get_token ();
-		if (in_array ( $_action, array (
+		$param = array (
 				'lists',
 				'config',
 				'nulldeal' 
-		) ) && (empty ( $token ) || $token == '-1')) {
-			$this->error ( '请先增加公众号！', U ( 'Home/MemberPublic/lists' ) );
+		);
+		if (in_array ( _ACTION, $param ) && (empty ( $token ) || $token == '-1')) {
+			$url = U ( 'Public/step_0?from=2' );
+			redirect ( $url );
 		}
 		
-		$this->_nav ();
+		C ( 'EDITOR_UPLOAD.rootPath', './Uploads/Editor/' . $token . '/' );
 		
-		if (! empty ( $_addons ) && ! empty ( $_controller ) && ! empty ( $_action )) {
-			tongji ( $_addons );
-			
-			A ( "Addons://{$_addons}/{$_controller}" )->$_action ();
+		if ($GLOBALS ['is_wap']) {
+			// 默认错误跳转对应的模板文件
+			C ( 'TMPL_ACTION_ERROR', 'Addons:dispatch_jump_mobile' );
+			// 默认成功跳转对应的模板文件
+			C ( 'TMPL_ACTION_SUCCESS', 'Addons:dispatch_jump_mobile' );
 		} else {
-			$this->error ( '没有指定插件名称，控制器或操作！' );
+			$this->_nav ();
 		}
 	}
+	public function execute($_addons = null, $_controller = null, $_action = null) {
+	}
+	public function plugin($_addons = null, $_controller = null, $_action = null) {
+	}
 	function _nav() {
-		$map ['name'] = _ADDONS;
-		$this->addon = $addon = M ( 'Addons' )->where ( $map )->find ();
+		$addon = D ( 'Home/Addons' )->getInfoByName ( _ADDONS );
 		
 		$nav = array ();
 		if ($addon ['has_adminlist']) {
@@ -107,15 +93,16 @@ class AddonsController extends Controller {
 		if (file_exists ( $templateFile )) {
 			return $templateFile;
 		}
+		$type = is_dir ( ONETHINK_PLUGIN_PATH . _ADDONS ) ? 'Plugins' : 'Addons';
 		// dump ( $templateFile );
 		$oldFile = $templateFile;
 		if (empty ( $templateFile )) {
-			$templateFile = T ( 'Addons://' . _ADDONS . '@' . _CONTROLLER . '/' . _ACTION );
+			$templateFile = T ( $type . '://' . _ADDONS . '@' . _CONTROLLER . '/' . _ACTION );
 		} elseif (stripos ( $templateFile, '/Addons/' ) === false && stripos ( $templateFile, THINK_PATH ) === false) {
 			if (stripos ( $templateFile, '/' ) === false) { // 如index
-				$templateFile = T ( 'Addons://' . _ADDONS . '@' . _CONTROLLER . '/' . $templateFile );
+				$templateFile = T ( $type . '://' . _ADDONS . '@' . _CONTROLLER . '/' . $templateFile );
 			} elseif (stripos ( $templateFile, '@' ) === false) { // // 如 UserCenter/index
-				$templateFile = T ( 'Addons://' . _ADDONS . '@' . $templateFile );
+				$templateFile = T ( $type . '://' . _ADDONS . '@' . $templateFile );
 			}
 		}
 		
@@ -132,20 +119,29 @@ class AddonsController extends Controller {
 		$templateFile = $this->getAddonTemplate ( $model ['template_list'] );
 		parent::common_lists ( $model, $page, $templateFile );
 	}
+	function export($model = null) {
+		is_array ( $model ) || $model = $this->getModel ( $model );
+		parent::common_export ( $this->model );
+	}
 	
 	// 通用插件的编辑模型
 	public function edit($model = null, $id = 0) {
+		
 		is_array ( $model ) || $model = $this->getModel ( $model );
 		$templateFile = $this->getAddonTemplate ( $model ['template_edit'] );
 		parent::common_edit ( $model, $id, $templateFile );
+		
+		
 	}
 	
 	// 通用插件的增加模型
 	public function add($model = null) {
+		
 		is_array ( $model ) || $model = $this->getModel ( $model );
 		$templateFile = $this->getAddonTemplate ( $model ['template_add'] );
 		
 		parent::common_add ( $model, $templateFile );
+	
 	}
 	
 	// 通用插件的删除模型
@@ -167,7 +163,7 @@ class AddonsController extends Controller {
 		}
 		
 		$map ['name'] = _ADDONS;
-		$addon = M ( 'Addons' )->where ( $map )->find ();
+		$addon = M ( 'addons' )->where ( $map )->find ();
 		if (! $addon)
 			$this->error ( '插件未安装' );
 		$addon_class = get_addon_class ( $addon ['name'] );
@@ -225,7 +221,7 @@ class AddonsController extends Controller {
 			
 			$this->assign ( 'fields', $fields );
 			$this->assign ( 'data', $data );
-			$this->meta_title = '编辑' . $model ['title'];
+			
 			$this->display ( './Application/Home/View/default/Addons/mobileForm.html' );
 		}
 	}
@@ -240,36 +236,94 @@ class AddonsController extends Controller {
 		$page->setConfig ( 'next', '下一页<span class="arrow_right"></span>' );
 		return $page->show ();
 	}
-	// 插件中的Model文件的通用调试方法
-	function test_model() {
-		$_addon = I ( 'get._addon' );
-		$_model = I ( 'get._model' );
-		$_act = I ( 'get._act' );
+	function get_package_template() {
+		$addons = I ( 'addons' );
+		/*
+		 * $dir = ONETHINK_ADDON_PATH . $addons . '/View/default/Package';
+		 * $url = SITE_URL . '/Addons/' . $addons . '/View/default/Package';
+		 *
+		 * $dirObj = opendir ( $dir );
+		 * while ( $file = readdir ( $dirObj ) ) {
+		 * if ($file === '.' || $file == '..' || $file == '.svn' || is_file ( $dir . '/' . $file ))
+		 * continue;
+		 *
+		 * $res ['dirName'] = $res ['title'] = $file;
+		 *
+		 * // 获取配置文件
+		 * if (file_exists ( $dir . '/' . $file . '/info.php' )) {
+		 * $info = require_once $dir . '/' . $file . '/info.php';
+		 * $res = array_merge ( $res, $info );
+		 * }
+		 *
+		 * // 获取效果图
+		 * if (file_exists ( $dir . '/' . $file . '/info.php' )) {
+		 * $res ['icon'] = __ROOT__ . '/Addons/'.$addons.'/View/default/Package/' . $file . '/icon.png';
+		 * } else {
+		 * $res ['icon'] = __IMG__ . '/default.png';
+		 * }
+		 *
+		 * $tempList [] = $res;
+		 * unset ( $res );
+		 * }
+		 * closedir ( $dir );
+		 */
+		$map ['uid'] = get_mid ();
+		$map ['addons'] = $addons;
 		
-		empty ( $_addon ) && die ( '_addon参数不能为空' );
-		empty ( $_model ) && $_model = 'WeixinAddon';
-		empty ( $_act ) && $_act = 'reply';
-		
-		// 带key_开头的索引作为$keywordArr参数传入，其它作为$dataArr参数传入
-		foreach ( $_GET as $k => $v ) {
-			if ($key = str_replace ( 'key_', '', $k, $count ) && $count > 0) {
-				$keywordArr [$key] = $v;
-			} else {
-				$dataArr [$k] = $v;
+		$Model = D ( 'SucaiTemplate' );
+		$tempList = $Model->where ( $map )->select ();
+		// dump($tempList);
+		if (! $tempList) {
+			$default ['addons'] = $addons;
+			$default ['template'] = 'default';
+			$tempList [] = $default;
+		} else {
+			$hasDefault = false;
+			foreach ( $tempList as $vo ) {
+				if ($vo ['template'] == 'default') {
+					$hasDefault = true;
+					break;
+				}
+			}
+			if ($hasDefault == false) {
+				$default ['addons'] = $addons;
+				$default ['template'] = 'default';
+				$tempList [] = $default;
 			}
 		}
-		dump ( 'dataArr:' );
-		dump ( $dataArr );
-		dump ( 'keywordArr:' );
-		dump ( $keywordArr );
-		
-		$_REQUEST ['doNotInit'] = 1;
-		
-		$dataArr ['Content'] = '苏州天气';
-		
-		// 加载相应的插件来处理并反馈信息
-		require_once ONETHINK_ADDON_PATH . $_addon . '/Model/WeixinAddonModel.class.php';
-		$model = D ( 'Addons://' . $_addon . '/WeixinAddon' );
-		$model->reply ( $dataArr, $keywordArr );
+		// dump($tempList);
+		foreach ( $tempList as &$vo ) {
+			$info = $this->_readSucaiTemplateInfo ( $vo ['addons'], $vo ['template'] );
+			// dump($info);
+			$vo ['title'] = $info ['title'];
+			$vo ['icon'] = $info ['icon'];
+		}
+		// dump($tempList);
+		$this->ajaxReturn ( $tempList, 'JSON' );
 	}
+	function getSucaiTemplateInfo() {
+		$addons = I ( 'addons' );
+		$template = I ( 'template' );
+		$res = $this->_readSucaiTemplateInfo ( $addons, $template );
+		$this->ajaxReturn ( $res, 'JSON' );
+	}
+	function _readSucaiTemplateInfo($addons = 'Coupon', $template = 'default') {
+		$dir = SITE_PATH . '/SucaiTemplate';
+		$infoPath = $dir . '/' . $addons . '/' . $template . '/info.php';
+		// dump($infoPath);
+		$res ['dirName'] = $template;
+		if (file_exists ( $infoPath )) {
+			$info = require_once $infoPath;
+			$res = array_merge ( $res, $info );
+		}
+		// 获取效果图
+		if (file_exists ( $dir . '/' . $addons . '/' . $template . '.png' )) {
+			$res ['icon'] = __ROOT__ . '/SucaiTemplate/' . $addons . '/' . $template . '.png';
+		} else {
+			$res ['icon'] = __ROOT__ . '/Public/Home/images/no_template_icon.png';
+		}
+		
+		return $res;
+	}
+	
 }

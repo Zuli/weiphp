@@ -3,6 +3,74 @@
 namespace Home\Controller;
 
 class TestController extends HomeController {
+	var $db2 = '`weiphp3.0`'; // 要更新的数据库
+	var $db1 = '`shop`'; // 源数据库
+	function updateModel() {
+		$this->adddel ( 'wp_model', 'name' );
+	}
+	function updateAttr() {
+	}
+	function adddel($table, $field) {
+		set_time_limit ( 0 );
+		$sql = "SELECT * FROM {$this->db1}.`$table`";
+		$list1 = M ()->query ( $sql );
+		foreach ( $list1 as $vo ) {
+			$arr11 [$vo ['id']] = $vo;
+		}
+		// dump ( $arr1 );
+		
+		$sql = "SELECT * FROM {$this->db2}.`$table`";
+		$list2 = M ()->query ( $sql );
+		foreach ( $list2 as $vo ) {
+			$arr22 [$vo ['id']] = 1;
+		}
+		foreach ( $arr11 as $id => $vo ) {
+			
+			$map ['id'] = $vo ['id'];
+			if (! isset ( $arr22 [$id] )) {
+				$res = M ( 'model' )->add ( $vo );
+				lastsql ();
+				dump ( $res );
+			}
+		}
+		exit ();
+		foreach ( $list2 as $v ) {
+			unset ( $v ['id'], $v ['update_time'], $v ['create_time'] );
+			$fields [$v ['name']] = $v;
+		}
+		
+		$add_arr = array_diff ( $arr1, $arr2 );
+		dump ( $add_arr );
+		
+		$del_arr = array_diff ( $arr2, $arr1 );
+		dump ( $del_arr );
+		exit ();
+		foreach ( $list1 as $key => $value ) {
+			unset ( $value ['id'] );
+			if (in_array ( $value [$field], $add_arr )) {
+				$fields = array_keys ( $value );
+				$fields = '`' . implode ( '`,`', $fields ) . '`';
+				$val = "'" . implode ( "','", $value ) . "'";
+				$sqlArr [] = "INSERT INTO $table ({$fields}) VALUES ({$val});<br/>";
+			} elseif (in_array ( $value [$field], $del_arr )) {
+				$sqlArr [] = "DELETE FROM $table WHERE `{$field}`='{$value [$field]}';<br/>";
+			} else {
+				unset ( $value ['id'], $value ['update_time'], $value ['create_time'] );
+				$diff = array_diff ( $value, $fields [$value ['name']] );
+				if (! empty ( $diff )) {
+					$modelArr [$value ['name']] = $diff;
+				}
+			}
+		}
+		if (! empty ( $modelArr )) {
+			dump ( $modelArr );
+			// echo '$modelArr=' . var_export ( $modelArr, true ) . ';<br/><br/><br/>';
+		}
+		if (! empty ( $sqlArr )) {
+			dump ( $sqlArr );
+			// echo '$sqlArr=' . var_export ( $sqlArr, true ) . ';<br/><br/><br/>';
+		}
+	}
 	function attr2() {
 		$model_list = M ( 'model' )->field ( 'id,name' )->select ();
 		foreach ( $model_list as $m ) {
@@ -31,14 +99,14 @@ class TestController extends HomeController {
 		
 		foreach ( $att as $t => $a ) {
 			$diff = array_diff ( $att2 [$t], $a );
-			if ( !empty ( $diff )) {
+			if (! empty ( $diff )) {
 				dump ( '===========' . $t . '===========' );
 				dump ( $diff );
 			}
 		}
 		
-// 		dump ( $att );
-// 		dump ( $att2 );
+		// dump ( $att );
+		// dump ( $att2 );
 	}
 	function attr() {
 		$column_list = M ()->query ( "SELECT TABLE_NAME,COLUMN_NAME,COLUMN_TYPE,IS_NULLABLE FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA='update0825'" );
@@ -72,7 +140,7 @@ class TestController extends HomeController {
 		$list = M ()->query ( $sql );
 		foreach ( $list as $vo ) {
 			$table = $vo ['TABLE_NAME'];
-			$sql = "UPDATE $table SET token='gh_a9f897b74c99' where token='gh_825cf61f1562'";
+			$sql = "UPDATE $table SET token='gh_fd7d36352d19' where token='gh_825cf61f1562'";
 			$res = M ()->execute ( $sql );
 			dump ( $sql );
 			dump ( $res );
@@ -163,5 +231,27 @@ str;
 	}
 	function testFile() {
 		require_once SITE_PATH . '/test2.php';
+	}
+	function updateNotNull() {
+		$sql = "SELECT * FROM `wp_attribute` WHERE field LIKE '%NOT NULL%'";
+		$list = M ()->query ( $sql );
+		foreach ( $list as $vo ) {
+			$map ['id'] = $vo ['id'];
+			$save ['field'] = $vo ['field'] = str_replace ( 'NOT NULL', 'NULL', $vo ['field'] );
+			
+			D ( 'Admin/Attribute' )->updateField ( $vo );
+			M ( 'attribute' )->where ( $map )->save ( $save );
+		}
+	}
+	function updateNotNull2() {
+		$sql = "SELECT * FROM `wp_attribute` WHERE field LIKE '%NOT NULL%' AND is_must=0";
+		$list = M ()->query ( $sql );
+		foreach ( $list as $vo ) {
+			$map ['id'] = $vo ['id'];
+			$save ['field'] = $vo ['field'] = str_replace ( 'NOT NULL', 'NULL', $vo ['field'] );
+			
+			D ( 'Admin/Attribute' )->updateField ( $vo );
+			M ( 'attribute' )->where ( $map )->save ( $save );
+		}
 	}
 }

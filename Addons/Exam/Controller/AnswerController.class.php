@@ -46,8 +46,8 @@ class AnswerController extends AddonsController {
 		$name = parse_name ( get_table_name ( $this->model ['id'] ), true );
 		$list = M ( $name )->where ( $map )->field ( $data ['fields'] )->order ( 'id DESC' )->group ( 'uid' )->selectPage ();
 		foreach ( $list ['list_data'] as &$vo ) {
-			$member = get_memberinfo ( $vo ['uid'] );
-			$vo ['truename'] = $member ['truename'];
+			$member = get_userinfo ( $vo ['uid'] );
+			$vo ['truename'] = $member ['truename']? $member ['truename']: $member ['nickname'];
 			$vo ['mobile'] = $member ['mobile'];
 			$vo ['score'] = $vo ['total'];
 		}
@@ -66,11 +66,11 @@ class AnswerController extends AddonsController {
 		$fields [] = 'question';
 		$fields [] = 'answer';
 		
-		$girds ['field'] [0] = 'question';
+		$girds ['field']  = 'question';
 		$girds ['title'] = '题目';
 		$list_data ['list_grids'] [] = $girds;
 		
-		$girds ['field'] [0] = 'answer';
+		$girds ['field']  = 'answer';
 		$girds ['title'] = '回答内容';
 		$list_data ['list_grids'] [] = $girds;
 		

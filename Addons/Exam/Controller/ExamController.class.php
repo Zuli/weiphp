@@ -19,9 +19,9 @@ class ExamController extends AddonsController {
 	}
 	function preview() {
 		$param ['exam_id'] = I ( 'id', 0, 'intval' );
-		$url = addons_url ( 'Exam://Exam/show', $param );
-		// dump($url);
-		redirect ( $url );
+		$url = addons_url('Exam://Exam/show',$param);
+		$this->assign('url', $url);
+		$this->display(SITE_PATH . '/Application/Home/View/default/Addons/preview.html');
 	}
 	function show($html = 'show') {
 		$map ['id'] = $exam_id = I ( 'exam_id', 0, 'intval' );

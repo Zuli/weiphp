@@ -47,6 +47,9 @@ class CustomReplyController extends BaseController {
 			if ($Model->create () && $Model->save ()) {
 				$this->_saveKeyword ( $model, $id, 'custom_reply_news' );
 				
+				// 清空缓存
+				method_exists ( $Model, 'clear' ) && $Model->clear ( $id, 'edit' );
+				
 				$this->success ( '保存' . $model ['title'] . '成功！', U ( 'lists?model=' . $model ['name'] ) );
 			} else {
 				$this->error ( $Model->getError () );
@@ -56,7 +59,7 @@ class CustomReplyController extends BaseController {
 			
 			$extra = $this->getCateData ();
 			if (! empty ( $extra )) {
-				foreach ( $fields [1] as &$vo ) {
+				foreach ( $fields as &$vo ) {
 					if ($vo ['name'] == 'cate_id') {
 						$vo ['extra'] .= "\r\n" . $extra;
 					}
@@ -91,6 +94,9 @@ class CustomReplyController extends BaseController {
 			if ($Model->create () && $id = $Model->add ()) {
 				$this->_saveKeyword ( $model, $id, 'custom_reply_news' );
 				
+				// 清空缓存
+				method_exists ( $Model, 'clear' ) && $Model->clear ( $id, 'edit' );
+				
 				$this->success ( '添加' . $model ['title'] . '成功！', U ( 'lists?model=' . $model ['name'] ) );
 			} else {
 				$this->error ( $Model->getError () );
@@ -100,13 +106,13 @@ class CustomReplyController extends BaseController {
 			
 			$extra = $this->getCateData ();
 			if (! empty ( $extra )) {
-				foreach ( $fields [1] as &$vo ) {
+				foreach ( $fields as &$vo ) {
 					if ($vo ['name'] == 'cate_id') {
 						$vo ['extra'] .= "\r\n" . $extra;
 					}
 				}
 			}
-			
+
 			$this->assign ( 'fields', $fields );
 			$this->meta_title = '新增' . $model ['title'];
 			
@@ -132,11 +138,12 @@ class CustomReplyController extends BaseController {
 	
 	// 内容页面
 	function detail() {
-		$map ['id'] = I ( 'get.id', 0, 'intval' );
-		$info = M ( 'custom_reply_news' )->where ( $map )->find ();
+		$id = I ( 'get.id', 0, 'intval' );
+		
+		$info = D ( 'Addons://CustomReply/CustomReply' )->getInfo ( $id );
 		$this->assign ( 'info', $info );
 		
-		M ( 'custom_reply_news' )->where ( $map )->setInc ( 'view_count' );
+		D ( 'Common/Count' )->set ( 'custom_reply_news', $id, 'view_count' );
 		
 		// 增加积分
 		add_credit ( 'custom_reply', 300 );

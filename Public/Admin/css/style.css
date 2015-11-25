@@ -239,14 +239,14 @@ body{
 }
 /* 首页数据 */
 .top-columns {
-    margin: 0 0 5px;
+    margin: 25px 0 5px;
     text-align: center;
 }
 .show-num-mod {
     display: inline-block;
     *display: inline;
     *zoom: 1;
-    margin: 0 15px 15px;
+    margin: 0 10px 15px;
     border: 1px solid #cdcdcd;
     background-color: #fff;
 }
@@ -455,12 +455,12 @@ body{
     filter: alpha(opacity=40);
 }
 
-.member-form {
+.user-form {
     display: none;
     width: 360px;
     padding: 12px 60px;
 }
-.member-form i{
+.user-form i{
     color: red;
 }
 .admin-form .item{
@@ -565,7 +565,6 @@ body{
     color: #404040;
     line-height: 35px;
     width: 20%;
-    height: 376px;
 
 }
 .edit_sort span {
@@ -632,3 +631,9 @@ body{
 .copyright a {
     margin: 0 4px;
 }
+/* 普通弹框 */
+.normal_dialog{ position:relative; min-height:100px; min-width:300px;}
+.normal_dialog h6{ line-height:40px; text-align:center}
+.normal_dialog .close{ position:absolute; top:0; right:0; height:40px; line-height:40px; padding:0 10px; background:#ddd; font-size:12px; color:#000; border:none;}
+.normal_dialog .content{ padding:15px;}
+.normal_dialog .btn_wrap{ margin-bottom:15px; text-align:center; margin-top:15px;}

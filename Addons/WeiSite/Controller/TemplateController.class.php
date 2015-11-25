@@ -16,6 +16,11 @@ class TemplateController extends BaseController {
 		$res ['class'] = $action == 'index' ? 'cur' : '';
 		$nav [] = $res;
 		
+		$res ['title'] = '二级分类模板';
+		$res ['url'] = addons_url ( 'WeiSite://template/subcate' );
+		$res ['class'] = $action == 'subcate' ? 'cur' : '';
+		$nav [] = $res;
+		
 		$res ['title'] = '图文列表模板';
 		$res ['url'] = addons_url ( 'WeiSite://template/lists' );
 		$res ['class'] = $action == 'lists' ? 'cur' : '';
@@ -44,6 +49,13 @@ class TemplateController extends BaseController {
 		
 		$this->display ();
 	}
+	// 二级分类
+	function subcate() {
+		// 使用提示
+		$this->_getTemplateByDir ( 'TemplateSubcate' );
+		
+		$this->display ( 'index' );
+	}
 	// 分类列表模板
 	function lists() {
 		$this->_getTemplateByDir ( 'TemplateLists' );
@@ -70,15 +82,15 @@ class TemplateController extends BaseController {
 	// 保存切换的模板
 	function save() {
 		$act = I ( 'post.type' );
-		$this->config ['template_' . $act] = I ( 'post.template' );
-		D ( 'Common/AddonConfig' )->set ( _ADDONS, $this->config );
+		$config ['template_' . $act] = I ( 'post.template' );
+		D ( 'Common/AddonConfig' )->set ( _ADDONS, $config );
 	}
 	
 	// 获取目录下的所有模板
 	function _getTemplateByDir($type = 'TemplateIndex') {
 		$action = strtolower ( _ACTION );
 		$default = $this->config ['template_' . $action];
-		
+		// dump($default);
 		$dir = ONETHINK_ADDON_PATH . _ADDONS . '/View/default/' . $type;
 		$url = SITE_URL . '/Addons/' . _ADDONS . '/View/default/' . $type;
 		
@@ -112,6 +124,36 @@ class TemplateController extends BaseController {
 			unset ( $res );
 		}
 		closedir ( $dir );
+		
+		// 兼容pigcms
+		if ($type != 'TemplateFooter' && file_exists ( ONETHINK_ADDON_PATH . _ADDONS . '/View/default/pigcms/index.Tpl.php' )) {
+			if ($type == 'TemplateDetail') {
+				$pigcms_temps = require_once ONETHINK_ADDON_PATH . _ADDONS . '/View/default/pigcms/cont.Tpl.php';
+			} else {
+				$pigcms_temps = require_once ONETHINK_ADDON_PATH . _ADDONS . '/View/default/pigcms/index.Tpl.php';
+			}
+			
+			foreach ( $pigcms_temps as $p ) {
+				$res ['dirName'] = $p ['tpltypename'];
+				$res ['title'] = '模板' . $p ['tpltypeid'];
+				
+				$res ['desc'] = $p ['tpldesinfo'];
+				
+				// 获取效果图
+				$res ['icon'] = __ROOT__ . '/Addons/WeiSite/View/default/pigcms/images/' . $p ['tplview'];
+				
+				// 默认选中
+				if ($default == $p ['tpltypename']) {
+					$res ['class'] = 'selected';
+					$res ['checked'] = 'checked="checked"';
+				}
+				
+				$tempList [] = $res;
+				unset ( $res );
+			}
+		}
+		// dump ( $pigcms_temps );
+		// exit ();
 		
 		// dump ( $tempList );
 		

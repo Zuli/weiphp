@@ -8,7 +8,7 @@ class AnswerController extends AddonsController {
 	var $model;
 	var $survey_id;
 	function _initialize() {
-		parent::_initialize();
+		parent::_initialize ();
 		
 		$this->model = $this->getModel ( 'survey_answer' );
 		
@@ -41,14 +41,13 @@ class AnswerController extends AddonsController {
 		$map = $this->_search_map ( $this->model, $data ['fields'] );
 		
 		$name = parse_name ( get_table_name ( $this->model ['id'] ), true );
+		
 		$list = M ( $name )->where ( $map )->order ( 'id DESC' )->group ( 'uid' )->selectPage ();
 		foreach ( $list ['list_data'] as &$vo ) {
-			$member = get_memberinfo ( $vo ['uid'] );
-			if (empty ( $member )) {
-				$member = get_followinfo ( $vo ['uid']  );
-			}
-			$vo ['truename'] = $member ['truename'];
-			$vo ['mobile'] = $member ['mobile'];
+			$user = getUserInfo ( $vo ['uid'] );
+			
+			$vo ['truename'] = $user ['nickname'];
+			$vo ['mobile'] = $user ['mobile'];
 		}
 		
 		$this->assign ( $list );
@@ -60,18 +59,18 @@ class AnswerController extends AddonsController {
 		$this->assign ( 'search_button', false );
 		$this->assign ( 'del_button', false );
 		$this->assign ( 'check_all', false );
-		
+		$model = $this->getModel ( 'survey_answer' );
 		// 解析列表规则
 		$fields [] = 'question';
 		$fields [] = 'answer';
 		
-		$girds ['field'] [0] = 'question';
+		$girds ['field'] = 'question';
 		$girds ['title'] = '问题';
-		$list_data ['list_grids'] [] = $girds;
+		$list_data ['list_grids'] ['question'] = $girds;
 		
-		$girds ['field'] [0] = 'answer';
+		$girds ['field'] = 'answer';
 		$girds ['title'] = '回答内容';
-		$list_data ['list_grids'] [] = $girds;
+		$list_data ['list_grids'] ['answer'] = $girds;
 		
 		$list_data ['fields'] = $fields;
 		$this->assign ( $list_data );

@@ -18,7 +18,7 @@ class ForumController extends HomeController {
 		! isset ( $_GET ['model'] ) || $name = I ( 'model', 'Forum' );
 		! isset ( $_GET ['temp'] ) || $name = I ( 'temp', 'index' );
 		
-		$model = M ( 'Model' )->getByName ( $name );
+		$model = M('model')->getByName ( $name );
 		$this->assign ( 'model', $model );
 		// dump ( $model );
 		
@@ -48,7 +48,7 @@ class ForumController extends HomeController {
 			$this->error ( '您还没有登录，请先登录！', U ( 'User/login' ) );
 		}
 		
-		$model = M ( 'Model' )->find ( I ( 'get.model' ) );
+		$model = M('model')->find ( I ( 'get.model' ) );
 		$this->assign ( 'model', $model );
 		$id = I ( 'id', 0 );
 		
@@ -93,7 +93,7 @@ class ForumController extends HomeController {
 	function right_data($model) {
 		$map ['model_id'] = $model ['id'];
 		$map ['name'] = 'cid';
-		$cate = M ( 'attribute' )->where ( $map )->getField ( 'extra' );
+		$cate = M('attribute')->where ( $map )->getField ( 'extra' );
 		$cate = preg_split ( '/[;\r\n]+/s', $cate );
 		foreach ( $cate as $k => $vo ) {
 			$arr = explode ( ':', $vo );
@@ -107,7 +107,7 @@ class ForumController extends HomeController {
 	public function topic($name = 'Forum', $temp = 'topic') {
 		! isset ( $_GET ['model'] ) || $name = I ( 'model', 'Forum' );
 		
-		$model = M ( 'Model' )->getByName ( $name );
+		$model = M('model')->getByName ( $name );
 		$this->assign ( 'model', $model );
 		
 		$this->right_data ( $model );

@@ -351,7 +351,7 @@ ThinkBox = function(element, options){
     setupToolsBar.call(self);// 安装工具栏
 
     /* 自动加载css文件并显示弹出层 */
-    includeCss("/skin/" + options.style + "/style.css?v={:SITE_VERSION}", function(){
+    includeCss("/skin/" + options.style + "/style.css", function(){
         box.hide().appendTo("body"); //放入body
 
         /* 解决拖动出浏览器时左边不显示的BUG */

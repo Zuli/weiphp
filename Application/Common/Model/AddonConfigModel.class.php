@@ -17,112 +17,109 @@ class AddonConfigModel extends Model {
 		if (empty ( $map ['token'] )) {
 			return false;
 		}
-		$info = M ( 'member_public' )->where ( $map )->find ();
+		$info = M ( 'public' )->where ( $map )->find ();
 		if (! $info) {
-			$map ['uid'] = session('mid');
+			$map ['uid'] = session ( 'mid' );
 			$addon_config [$addon] = $config;
 			$map ['addon_config'] = json_encode ( $addon_config );
-			$flag = M ( 'member_public' )->add ( $map );
+			$info ['id'] = M ( 'public' )->add ( $map );
 		} else {
 			$addon_config = json_decode ( $info ['addon_config'], true );
-			$addon_config [$addon] = $config;
-			$flag = M ( 'member_public' )->where ( $map )->setField ( 'addon_config', json_encode ( $addon_config ) );
+			$addon_config [$addon] = ( array ) $addon_config [$addon];
+			$addon_config [$addon] = array_merge ( $addon_config [$addon], $config );
+			M ( 'public' )->where ( $map )->setField ( 'addon_config', json_encode ( $addon_config ) );
 		}
-
-		return $flag;
+		
+		D ( 'Common/Public' )->clear ( $info ['id'] );
+		
+		return $info ['id'];
 	}
-	
 	function sett($addon, $config, $id) {
 		$map ['token'] = get_token ();
-		$map['id']=$id;
+		$map ['id'] = $id;
 		if (empty ( $map ['token'] )) {
 			return false;
 		}
 		$info = M ( 'weisite_category' )->where ( $map )->find ();
 		if (! $info) {
-			//$map['id']=$id;
-			$map ['uid'] = session('mid');
+			// $map['id']=$id;
+			$map ['uid'] = session ( 'mid' );
 			$addon_config [$addon] = $config;
 			$map ['addon_config'] = json_encode ( $addon_config );
 			
-			$aaa = M ( 'weisite_category' )->add( $map );
+			$aaa = M ( 'weisite_category' )->add ( $map );
 		} else {
 			$addon_config = json_decode ( $info ['addon_config'], true );
 			$addon_config [$addon] = $config;
 			$aaa = M ( 'weisite_category' )->where ( $map )->setField ( 'addon_config', json_encode ( $addon_config ) );
 		}
-
+		
 		return $aaa;
 	}
-	
 	function setlist($addon, $config, $id) {
 		$map ['token'] = get_token ();
-		$map['id']=$id;
+		$map ['id'] = $id;
 		if (empty ( $map ['token'] )) {
 			return false;
 		}
 		$info = M ( 'weisite_category' )->where ( $map )->find ();
 		if (! $info) {
-			//$map['id']=$id;
-			$map ['uid'] = session('mid');
+			// $map['id']=$id;
+			$map ['uid'] = session ( 'mid' );
 			$addon_config [$addon] = $config;
 			$map ['listts'] = json_encode ( $addon_config );
 			
-			$aaa = M ( 'weisite_category' )->add( $map );
+			$aaa = M ( 'weisite_category' )->add ( $map );
 		} else {
 			$addon_config = json_decode ( $info ['listts'], true );
 			$addon_config [$addon] = $config;
 			$aaa = M ( 'weisite_category' )->where ( $map )->setField ( 'listts', json_encode ( $addon_config ) );
 		}
-
+		
 		return $aaa;
 	}
-	
-	
 	function setdetail($addon, $config, $id) {
 		$map ['token'] = get_token ();
-		$map['id']=$id;
+		$map ['id'] = $id;
 		if (empty ( $map ['token'] )) {
 			return false;
 		}
 		$info = M ( 'weisite_category' )->where ( $map )->find ();
 		if (! $info) {
-			//$map['id']=$id;
-			$map ['uid'] = session('mid');
+			// $map['id']=$id;
+			$map ['uid'] = session ( 'mid' );
 			$addon_config [$addon] = $config;
 			$map ['content'] = json_encode ( $addon_config );
 			
-			$aaa = M ( 'weisite_category' )->add( $map );
+			$aaa = M ( 'weisite_category' )->add ( $map );
 		} else {
 			$addon_config = json_decode ( $info ['content'], true );
 			$addon_config [$addon] = $config;
 			$aaa = M ( 'weisite_category' )->where ( $map )->setField ( 'content', json_encode ( $addon_config ) );
 		}
-
+		
 		return $aaa;
 	}
-	
-	
 	function setfooter($addon, $config, $id) {
 		$map ['token'] = get_token ();
-		$map['id']=$id;
+		$map ['id'] = $id;
 		if (empty ( $map ['token'] )) {
 			return false;
 		}
 		$info = M ( 'weisite_category' )->where ( $map )->find ();
 		if (! $info) {
-			//$map['id']=$id;
-			$map ['uid'] = session('mid');
+			// $map['id']=$id;
+			$map ['uid'] = session ( 'mid' );
 			$addon_config [$addon] = $config;
 			$map ['footer'] = json_encode ( $addon_config );
 			
-			$aaa = M ( 'weisite_category' )->add( $map );
+			$aaa = M ( 'weisite_category' )->add ( $map );
 		} else {
 			$addon_config = json_decode ( $info ['footer'], true );
 			$addon_config [$addon] = $config;
 			$aaa = M ( 'weisite_category' )->where ( $map )->setField ( 'footer', json_encode ( $addon_config ) );
 		}
-
+		
 		return $aaa;
 	}
 	
@@ -132,18 +129,17 @@ class AddonConfigModel extends Model {
 	 */
 	function get($addon) {
 		// 当前公众号的设置
-		$map ['token'] = get_token ();
-		$token_config = M ( 'member_public' )->where ( $map )->getField ( 'addon_config' );
+		$token = get_token ();
+		$token_config = D ( 'Common/Public' )->getInfoByToken ( $token, 'addon_config' );
+		// dump ( $token_config );
 		$token_config = json_decode ( $token_config, true );
 		$token_config = ( array ) $token_config [$addon];
-		//dump($token_config);
-		unset ( $map );
+		// dump ( $token_config );
 		
 		// 后台默认的配置
-		$map ['name'] = $addon;
-		$addon = M ( 'Addons' )->where ( $map )->find ();
+		$addon = D ( 'Home/Addons' )->getInfoByName ( $addon );
 		$addon_config = ( array ) json_decode ( $addon ['config'], true );
-		//dump($addon_config);
+		// dump ( $addon_config );
 		
 		// 安装文件上的配置
 		$file_config = array ();
@@ -151,7 +147,7 @@ class AddonConfigModel extends Model {
 		if (file_exists ( $file )) {
 			$file_config = include $data->config_file;
 		}
-		//dump($file_config);
+		// dump ( $file_config );
 		
 		return array_merge ( $file_config, $addon_config, $token_config );
 	}

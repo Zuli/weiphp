@@ -10,7 +10,7 @@ return array (
 				'title' => '封面图片:',
 				'type' => 'picture',
 				'value' => '',
-				'tip' => '' 
+				'tip' => '最佳尺寸为900*500' 
 		),
 		'info' => array (
 				'title' => '封面简介:',

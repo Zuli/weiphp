@@ -8,10 +8,7 @@ class QRCode {
 		$this->token = TOKEN;
 		$this->appID = APP_ID;
 		$this->appSecret = APP_SECRET;
-		$this->accessToken = RUNTIME_PATH . TOKEN . '_access_token';
-		if (! file_exists ( $this->accessToken )) {
-			$this->AccessTokenGet ();
-		}
+		$this->accessToken = get_access_token_by_apppid($this->appID, $this->appSecret);
 	}
 	/* 创建二维码 @param - $qrcodeID传递的参数，$qrcodeType二维码类型 默认为临时二维码 @return - 返回二维码图片地址 */
 	public function QrcodeCreate($qrcodeID, $qrcodeType = 0) {
@@ -34,15 +31,7 @@ class QRCode {
 	
 	/* 从微信服务器获取access_token并写入配置文件 */
 	private function AccessTokenGet() {
-		$url = 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=' . $this->appID . '&secret=' . $this->appSecret;
-		$tempArr = json_decode ( file_get_contents ( $url ), true );
-		if (@array_key_exists ( 'access_token', $tempArr )) {
-			$tempWriter = fopen ( $this->accessToken, 'w' );
-			fwrite ( $tempWriter, $tempArr ['access_token'] );
-		} else {
-			$this->ErrorLogger ( 'access_token get falied.' );
-			exit ();
-		}
+		return get_access_token_by_apppid($this->appID, $this->appSecret);
 	}
 	/* 用户分组查询 */
 	public function GroupsQuery() {

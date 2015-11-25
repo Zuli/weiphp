@@ -40,7 +40,7 @@
 						<label class="item-label">备注</label>
 						<div class="controls">
 							<label class="textarea input-large">
-								<textarea readonly>{$info.remark}</textarea>
+								<textarea readonly="readonly">{$info.remark}</textarea>
 							</label>
 						</div>
 					</div>
@@ -62,7 +62,8 @@
 <script type="text/javascript" charset="utf-8">
 Think.setValue("extend", {$info.extend|default=0});
 //导航高亮
-$('.side-sub-menu').find('a[href="{:U('Action/actionlog')}"]').closest('li').addClass('current');
+highlight_subnav('{:U('Action/actionlog')}');
+
 
 $(function(){
 	showTab();
@@ -75,7 +76,7 @@ $(function(){
 	     dragBetween:true,	//允许拖动到任意地方
 	     dragEnd:function(){
 	    	 var self = $(this);
-	    	 self.find('input').attr('name', 'field_sort[' + self.closest('ul').data('group') + '][]');
+	    	 self.find('input').attr('name', 'field_sort[]');
 	     	//updateVal();
 	     }
 	 });

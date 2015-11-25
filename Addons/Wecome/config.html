@@ -19,24 +19,15 @@
       <input type="radio" name="config[type]" value="3" class="regular-radio" id="config[type]_3" onClick="changeOption()">
       <label for="config[type]_3"></label>图文
       </div>
-    <label class="radio">
-      <input type="radio" name="config[type]" value="2" onClick="changeOption()">
-      关键词 </label>      
   </div>
 </div>
-<div class="form-item cf show show2">
-  <label class="item-label"> 关键词: <span class="check-tips">（可以是自定义回复，多图文等中的关键词）</span> </label>
-  <div class="controls">
-    <input type="text" name="config[keyword]" class="text input-large" value="{$data.config.keyword.value}">
-  </div>
-</div>
-<div class="form-item cf show show3">
-  <label class="item-label"> 标题: </label>
-  <div class="controls">
-    <input type="text" name="config[title]" class="text input-large" value="{$data.config.title.value}">
-  </div>
-</div>
-<div class="form-item cf show show3 show1">
+<!-- <div class="form-item cf show show3"> -->
+<!--   <label class="item-label"> 标题: </label> -->
+<!--   <div class="controls"> -->
+<!--     <input type="text" name="config[title]" class="text input-large" value="{$data.config.title.value}"> -->
+<!--   </div> -->
+<!-- </div> -->
+<div class="form-item cf show show1">
   <label class="item-label"> 内容: </label>
   <div class="controls">
     <label class="textarea input-large">
@@ -46,67 +37,83 @@
   
 </div>
 
-<div class="form-item cf show show3">
-  <label class="item-label"> 图片: <span class="check-tips">图片链接，支持JPG、PNG格式，较好的效果为大图360*200，小图200*200</span> </label>
-  <div class="controls">
-    <input type="hidden" name="config[pic_url]" class="text input-large" id="config_img" value="{$data.config.pic_url.value}">
-  </div>
+<!-- <div class="form-item cf show show3"> -->
+<!--   <label class="item-label"> 图片: <span class="check-tips">图片链接，支持JPG、PNG格式，较好的效果为大图360*200，小图200*200</span> </label> -->
   
-                          <div class="controls uploadrow2" title="点击修改图片">
-                            <input type="file" id="upload_picture_pic_url">
+<!--                           <div class="controls uploadrow2" title="点击修改图片" rel="pic_url"> -->
+<!--                             <input type="file" id="upload_picture_pic_url"> -->
                             
-                            <div class="upload-img-box" id="img_preview">
-                              <notempty name="data.config.pic_url.value">
-                                <div class="upload-pre-item2"><img width="180" height="100" src="{$data.config.pic_url.value}"/></div>
-                              </notempty>
-                            </div>
-                          </div>
-                         
-                          <script type="text/javascript">
-								//上传图片
-							    /* 初始化上传插件 */
-								$("#upload_picture_pic_url").uploadify({
-							        "height"          : 100,
-							        "swf"             : "__STATIC__/uploadify/uploadify.swf",
-							        "fileObjName"     : "download",
-							        "buttonText"      : "上传图片",
-							        "uploader"        : "{:U('home/File/uploadPicture',array('session_id'=>session_id()))}",
-							        "width"           : 180,
-							        'removeTimeout'	  : 1,
-							        'fileTypeExts'	  : '*.jpg; *.png; *.gif;',
-							        "onUploadSuccess" : uploadPicturepic_url
-							    });
-								function uploadPicturepic_url(file, data){
-							    	var data = $.parseJSON(data);
-							    	var src = '';
-							        if(data.status){
-							        	src = data.url || '__ROOT__' + data.path;
-							        	$("#img_preview").html('<div class="upload-pre-item2"><img width="180" height="100" src="' + src + '"/></div>');
-										var site = "{:SITE_URL}";
-										$('#config_img').val(site+data.path);
-							        } else {
-							        	updateAlert(data.info);
-							        	setTimeout(function(){
-							                $('#top-alert').find('.close').click();
-							                $(that).removeClass('disabled').prop('disabled',false);
-							            },1500);
-							        }
-							    }
-								</script> 
-</div>
-<div class="form-item cf show show3">
-  <label class="item-label"> 链接: <span class="check-tips">点击图文消息跳转链接</span> </label>
-  <div class="controls">
-    <input type="text" name="config[url]" class="text input-large" value="{$data.config.url.value}">
-  </div>
+<!--                             <input type="hidden" name="config[pic_url]" id="cover_id_pic_url" value="{$data.config.pic_url.value}"/> -->
+<!--                             <div class="upload-img-box"> -->
+<!--                               <notempty name="data.config.pic_url.value"> -->
+<!--                                 <div class="upload-pre-item2"><img width="100" height="100" src="{$data.config.pic_url.value|get_cover_url}"/></div> -->
+<!--                                 <em class="edit_img_icon">&nbsp;</em> -->
+<!--                               </notempty> -->
+<!--                             </div> -->
+<!--                           </div> -->
+
+<!-- </div> -->
+<!-- <div class="form-item cf show show3"> -->
+<!--   <label class="item-label"> 链接: <span class="check-tips">点击图文消息跳转链接</span> </label> -->
+<!--   <div class="controls"> -->
+<!--     <input type="text" name="config[url]" class="text input-large" value="{$data.config.url.value}"> -->
+<!--   </div> -->
+<!-- </div> -->
+
+<div  class="form-item cf show show3 appmsg_area" id="appmsg_area" style="margin:20px 0;">
+                                	<input type="hidden" name="config[appmsg_id]" value="{$data.config.appmsg_id.value}"/>
+                                    <a class="select_appmsg" href="javascript:;" onClick="$.WeiPHP.openSelectAppMsg('{:U('/Home/Material/material_data')}',selectAppMsgCallback)">选择图文</a>
+                                    <div class="appmsg_wrap" style="height:auto;"></div>
+                                    <a class="delete" href="javascript:;" style="left: 310px;">删除</a>
 </div>
 <script type="text/javascript">
+$(function(){
+	 initUploadImg();
+	
+	 })
 function changeOption(){
 	$(".show").each(function(){
 		$(this).hide();
 		
 	});
-	
+	var group_id=$("input[name='config[appmsg_id]']").val();
+	$.post("{:U('Home/Material/get_news_by_group_id')}",{'group_id':group_id},function(vo){
+		console.log(vo);
+		var html_str='';
+		if(vo.length==1){
+			html_str='<div class="appmsg_item"><h6>'+vo[0]['title']+'</h6><div class="main_img"><img src="'+vo[0]['img_url']+'"/></div><p class="desc">'+vo[0]['intro']+'</p></div><div class="hover_area"></div>';
+		}else{
+			for(var i=0;i<vo.length;i++){
+				if(vo[i]['id']==group_id){
+					html_str='<div class="appmsg_item"><div class="main_img"><img src="'+vo[i]['img_url']+'"/><h6>'+vo[i]['title']+'</h6></div><p class="desc">'+vo[i]['intro']+'</p></div>';
+				}else{
+					html_str+=' <div class="appmsg_sub_item"><p class="title">'+vo[i]['title']+'</p><div class="main_img"><img src="'+vo[i]['img_url']+'"/></div></div>';
+				}
+			}
+			html_str+='<div class="hover_area"></div>';
+		}
+		$('.appmsg_wrap').html(html_str).show();
+		$('.select_appmsg').hide();
+		$('.appmsg_area .delete').show();
+	})
+// 	var html_str=' <div class="appmsg_item"><p class="title">{$vo.cTime|time_format}</p>
+//                 <div class="main_img">
+//                     <img src="{$vo.cover_id|get_cover_url}"/>
+//                     <h6>{$vo.title}</h6>
+//                 </div>
+//                 <p class="desc">{$vo.intro}</p>
+//             </div>
+//             <volist name="vo.child" id="vv">
+//             <div class="appmsg_sub_item">
+//                 <p class="title">{$vv.title}</p>
+//                 <div class="main_img">
+//                     <img src="{$vv.cover_id|get_cover_url}"/>
+//                 </div>
+//             </div>
+//             </volist>
+//             <div class="hover_area"></div>'
+            
+    
 	var val = $("input[name='config[type]']:checked").val();
 	$('.show'+val).each(function(){
 		$(this).show();
@@ -116,8 +123,21 @@ $(function(){
 	var type = "{$data.config.type.value|intval}";
 	if(type=="0")
 	    type = 3;
-		
 	$("input[name='config[type]'][value="+type+"]").attr("checked",true); 
 	changeOption();
+	$('.appmsg_area .delete').click(function(){
+		$('.appmsg_wrap').html('').hide();
+		$('.select_appmsg').show();
+		$('.appmsg_area .delete').hide();
+		$('input[name="config[appmsg_id]"]').val(0);
+	})
 })
+function selectAppMsgCallback(_this){
+	$('.appmsg_wrap').html($(_this).html()).show();
+	$('.select_appmsg').hide();
+	$('.appmsg_area .delete').show();
+	$('input[name="config[appmsg_id]"]').val($(_this).data('group_id'));
+	$.Dialog.close();
+}
+
 </script>

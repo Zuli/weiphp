@@ -21,30 +21,32 @@ class CreditDataController extends HomeController {
 		$res ['class'] = $act == 'creditconfig' ? 'current' : '';
 		$nav [] = $res;
 		
-		$res ['title'] = '积分流水帐';
+		$res ['title'] = '积分记录';
 		$res ['url'] = U ( 'CreditData/lists' );
 		$res ['class'] = $act == 'creditdata' ? 'current' : '';
 		$nav [] = $res;
 		
-		$res ['title'] = '粉丝积分';
-		$res ['url'] = U ( 'CreditFollow/lists' );
-		$res ['class'] = $act == 'creditfollow' ? 'current' : '';
-		$nav [] = $res;
-		
 		$this->assign ( 'nav', $nav );
 		
-		$_GET['sidenav'] = 'home_creditconfig_lists';
+		$_GET ['sidenav'] = 'home_creditconfig_lists';
 	}
-	public function lists() {		
+	public function lists() {
+		$top_more_button [] = array (
+				'title' => '导入数据',
+				'url' => U ( 'import' ) 
+		);
+		
+		$this->assign ( 'top_more_button', $top_more_button );
 		$model = $this->getModel ( 'credit_data' );
 		
 		$map ['token'] = get_token ();
-		if(!empty($_GET['uid'])){
-			$map['uid'] = intval($_GET['uid']);
-		}elseif (! empty ( $_REQUEST ['nickname'] )) {
-			$user_map ['nickname'] = array (
-					'like',
-					'%' . htmlspecialchars ( $_REQUEST ['nickname'] ) . '%' 
+		if (! empty ( $_GET ['uid'] )) {
+		    $uidArr=wp_explode($_GET['uid']);
+			$map ['uid'] =array('in',$uidArr);
+		} elseif (! empty ( $_REQUEST ['nickname'] )) {
+			$map ['uid'] = array (
+					'in',
+					D ( 'Common/User' )->searchUser ( $_REQUEST ['nickname'] ) 
 			);
 		}
 		
@@ -80,7 +82,7 @@ class CreditDataController extends HomeController {
 		
 		$list_data = $this->_get_model_list ( $model );
 		foreach ( $list_data ['list_data'] as &$vo ) {
-			$vo ['nickname'] = get_nickname ( $vo ['uid'] );
+			$vo ['uid'] = get_nickname ( $vo ['uid'] );
 		}
 		$this->assign ( $list_data );
 		// dump($list_data);
@@ -95,6 +97,9 @@ class CreditDataController extends HomeController {
 			$Model = $this->checkAttr ( $Model, $model ['id'] );
 			if ($Model->create () && $id = $Model->add ()) {
 				$this->_saveKeyword ( $model, $id );
+				
+				// 清空缓存
+				method_exists ( $Model, 'clear' ) && $Model->clear ( $id, 'edit' );
 				
 				$this->success ( '添加' . $model ['title'] . '成功！', U ( 'lists?model=' . $model ['name'] ) );
 			} else {
@@ -155,5 +160,53 @@ class CreditDataController extends HomeController {
 		session ( 'common_condition', $map );
 		
 		parent::common_lists ( $model, 0, 'Addons/lists' );
+	}
+	function import() {
+		$model = $this->getModel ( 'import' );
+		if (IS_POST) {
+			$column = array (
+					'A' => 'uid',
+					'B' => 'credit_title',
+					'C' => 'score',
+					'D' => 'cTime' 
+			);
+			
+			$attach_id = I ( 'attach', 0 );
+			$dateCol = array (
+					'D' 
+			);
+			$res = importFormExcel ( $attach_id, $column, $dateCol );
+			if ($res ['status'] == 0) {
+				$this->error ( $res ['data'] );
+			}
+			$total = count ( $res ['data'] );
+			$uidStr='';
+			foreach ( $res ['data'] as $vo ) {
+			    $uidStr.=$vo['uid'].',';
+				if (empty ( $vo ['credit_title'] )) {
+					$vo ['credit_title'] = '手动导入';
+				}
+				if (empty ( $vo ['cTime'] )) {
+					$vo ['cTime'] = time ();
+				} else {
+					$vo ['cTime'] = strtotime ( $vo ['cTime'] );
+				}
+				
+				add_credit ( 'auto_add', 0, $vo );
+			}
+			$msg = "共导入" . $total . "条记录";
+			// dump($arr);
+			// $msg = trim ( $msg, ', ' );
+			// dump($msg);exit;
+			
+			$this->success ( $msg, U ( 'lists' ,array('uid'=>$uidStr)) );
+		} else {
+			$fields = get_model_attribute ( $model ['id'] );
+			$this->assign ( 'fields', $fields );
+			
+			$this->assign ( 'post_url', U ( 'import' ) );
+			$this->assign ( 'import_template', 'score_import.xls' );
+			$this->display ( 'Addons/import' );
+		}
 	}
 }

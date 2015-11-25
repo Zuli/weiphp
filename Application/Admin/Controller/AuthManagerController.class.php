@@ -19,15 +19,6 @@ use Admin\Model\AuthGroupModel;
  */
 class AuthManagerController extends AdminController {
 	
-	/* 因为updateRules要供缓存管理模块内部使用,无需通过url访问; */
-	protected static $deny = array (
-			'updateRules',
-			'tree' 
-	);
-	
-	/* 保存允许所有管理员访问的公共方法 */
-	protected static $allow = array ();
-	
 	/**
 	 * 后台节点配置的url作为规则存入auth_rule
 	 * 执行新节点的插入,已有节点的更新,无效规则的删除三项任务
@@ -54,14 +45,8 @@ class AuthManagerController extends AdminController {
 		foreach ( $nodes as $value ) {
 			$temp ['name'] = $value ['url'];
 			$temp ['title'] = $value ['title'];
-			$temp ['module'] = 'admin';
-			if ($value ['pid'] > 0) {
-				$temp ['type'] = AuthRuleModel::RULE_URL;
-			} else {
-				$temp ['type'] = AuthRuleModel::RULE_MAIN;
-			}
 			$temp ['status'] = 1;
-			$data [strtolower ( $temp ['name'] . $temp ['module'] . $temp ['type'] )] = $temp; // 去除重复项
+			$data [strtolower ( $temp ['name'] )] = $temp; // 去除重复项
 		}
 		
 		$update = array (); // 保存需要更新的节点
@@ -111,21 +96,70 @@ class AuthManagerController extends AdminController {
 	}
 	
 	/**
-	 * 权限管理首页
-	 *
-	 * @author 朱亚杰 <zhuyajie@topthink.net>
+	 * 用户组管理首页
 	 */
 	public function index() {
-		$list = $this->lists ( 'AuthGroup', array (
-				'module' => 'admin' 
-		), 'id asc' );
+		$map ['manager_id'] = 0;
+		$map ['type'] = array (
+				'exp',
+				'!=4' 
+		);
+		$list = $this->lists ( 'AuthGroup', $map, 'id desc' );
 		$list = int_to_string ( $list );
+		
+		$type_arr = array (
+				0 => '普通用户组',
+				1 => '微信用户组',
+				2 => '等级用户组',
+				3 => '认证用户组' 
+		);
+		// 4=>'公众号分组' 这类程序写死，不可增加，删除等操作
+		foreach ( $list as &$v ) {
+			$v ['type'] = $type_arr [$v ['type']];
+		}
+		
 		$this->assign ( '_list', $list );
+		
 		$this->assign ( '_use_tip', true );
-		$this->meta_title = '权限管理';
+		$this->meta_title = '用户组管理';
 		$this->display ();
 	}
-	
+	/**
+	 * 公众号组管理首页
+	 */
+	public function wechat() {
+		// 获取微信权限节点
+		$list = M ( 'public_auth' )->select ();
+		$this->assign ( 'list_data', $list );
+		// dump ( $list );
+		
+		$this->meta_title = '用户组管理';
+		
+		$this->display ();
+	}
+	function set_switch() {
+		$name = I ( 'name' );
+		$val = I ( 'val' );
+		$val = $val == 'true' ? 1 : 0;
+		
+		$arr = explode ( '|', $name );
+		
+		$map ['name'] = $arr [1];
+		$save [$arr [0]] = $val;
+		$res = M ( 'public_auth' )->where ( $map )->save ( $save );
+		
+		$returnData ['status'] = $res;
+		if ($res) {
+			S ( 'PUBLIC_AUTH_0', NULL );
+			S ( 'PUBLIC_AUTH_1', NULL );
+			S ( 'PUBLIC_AUTH_2', NULL );
+			S ( 'PUBLIC_AUTH_3', NULL );
+			$returnData ['info'] = "设置保存成功";
+		} else {
+			$returnData ['info'] = "设置保存失败";
+		}
+		$this->ajaxReturn ( $returnData, "JSON" );
+	}
 	/**
 	 * 创建管理员用户组
 	 *
@@ -150,10 +184,7 @@ class AuthManagerController extends AdminController {
 	 * @author 朱亚杰 <zhuyajie@topthink.net>
 	 */
 	public function editGroup() {
-		$auth_group = M ( 'AuthGroup' )->where ( array (
-				'module' => 'admin',
-				'type' => AuthGroupModel::TYPE_ADMIN 
-		) )->find ( ( int ) $_GET ['id'] );
+		$auth_group = M ( 'AuthGroup' )->find ( ( int ) $_GET ['id'] );
 		$this->assign ( 'auth_group', $auth_group );
 		$this->meta_title = '编辑用户组';
 		$this->display ();
@@ -161,35 +192,17 @@ class AuthManagerController extends AdminController {
 	
 	/**
 	 * 访问授权页面
-	 *
-	 * @author 朱亚杰 <zhuyajie@topthink.net>
 	 */
 	public function access() {
-		$this->updateRules ();
-		$auth_group = M ( 'AuthGroup' )->where ( array (
-				'status' => array (
-						'egt',
-						'0' 
-				),
-				'module' => 'admin',
-				'type' => AuthGroupModel::TYPE_ADMIN 
-		) )->getfield ( 'id,id,title,rules' );
-		$node_list = $this->returnNodes ();
-		$map = array (
-				'module' => 'admin',
-				'type' => AuthRuleModel::RULE_MAIN,
-				'status' => 1 
-		);
-		$main_rules = M ( 'AuthRule' )->where ( $map )->getField ( 'name,id' );
-		$map = array (
-				'module' => 'admin',
-				'type' => AuthRuleModel::RULE_URL,
-				'status' => 1 
-		);
-		$child_rules = M ( 'AuthRule' )->where ( $map )->getField ( 'name,id' );
+		$map ['id'] = I ( 'group_id', 0, 'intval' );
+		$auth_group = M ( 'AuthGroup' )->where ( $map )->getfield ( 'id,title,rules' );
 		
-		$this->assign ( 'main_rules', $main_rules );
-		$this->assign ( 'auth_rules', $child_rules );
+		$map2 ['status'] = 1;
+		$rules = M ( 'AuthRule' )->where ( $map2 )->field ( true )->select ();
+		foreach ( $rules as $vo ) {
+			$node_list [$vo ['group']] [] = $vo;
+		}
+		
 		$this->assign ( 'node_list', $node_list );
 		$this->assign ( 'auth_group', $auth_group );
 		$this->assign ( 'this_group', $auth_group [( int ) $_GET ['group_id']] );
@@ -207,8 +220,8 @@ class AuthManagerController extends AdminController {
 			sort ( $_POST ['rules'] );
 			$_POST ['rules'] = implode ( ',', array_unique ( $_POST ['rules'] ) );
 		}
-		$_POST ['module'] = 'admin';
-		$_POST ['type'] = AuthGroupModel::TYPE_ADMIN;
+		// $_POST['module'] = 'admin';
+		// $_POST['type'] = AuthGroupModel::TYPE_ADMIN;
 		$AuthGroup = D ( 'AuthGroup' );
 		$data = $AuthGroup->create ();
 		if ($data) {
@@ -261,14 +274,7 @@ class AuthManagerController extends AdminController {
 			$this->error ( '参数错误' );
 		}
 		
-		$auth_group = M ( 'AuthGroup' )->where ( array (
-				'status' => array (
-						'egt',
-						'0' 
-				),
-				'module' => 'admin',
-				'type' => AuthGroupModel::TYPE_ADMIN 
-		) )->getfield ( 'id,id,title,rules' );
+		$auth_group = M ( 'AuthGroup' )->field ( 'id,title,rules' )->select ();
 		$prefix = C ( 'DB_PREFIX' );
 		$l_table = $prefix . (AuthGroupModel::MEMBER);
 		$r_table = $prefix . (AuthGroupModel::AUTH_GROUP_ACCESS);
@@ -280,36 +286,12 @@ class AuthManagerController extends AdminController {
 						'egt',
 						0 
 				) 
-		), 'm.uid asc', null, 'm.uid,m.nickname,m.last_login_time,m.last_login_ip,m.status' );
+		), 'm.uid asc', 'm.uid,m.nickname,m.last_login_time,m.last_login_ip,m.status' );
 		int_to_string ( $list );
 		$this->assign ( '_list', $list );
 		$this->assign ( 'auth_group', $auth_group );
 		$this->assign ( 'this_group', $auth_group [( int ) $_GET ['group_id']] );
 		$this->meta_title = '成员授权';
-		$this->display ();
-	}
-	
-	/**
-	 * 将分类添加到用户组的编辑页面
-	 *
-	 * @author 朱亚杰 <zhuyajie@topthink.net>
-	 */
-	public function category() {
-		$auth_group = M ( 'AuthGroup' )->where ( array (
-				'status' => array (
-						'egt',
-						'0' 
-				),
-				'module' => 'admin',
-				'type' => AuthGroupModel::TYPE_ADMIN 
-		) )->getfield ( 'id,id,title,rules' );
-		$group_list = D ( 'Category' )->getTree ();
-		$authed_group = AuthGroupModel::getCategoryOfGroup ( I ( 'group_id' ) );
-		$this->assign ( 'authed_group', implode ( ',', ( array ) $authed_group ) );
-		$this->assign ( 'group_list', $group_list );
-		$this->assign ( 'auth_group', $auth_group );
-		$this->assign ( 'this_group', $auth_group [( int ) $_GET ['group_id']] );
-		$this->meta_title = '分类授权';
 		$this->display ();
 	}
 	public function tree($tree = null) {
@@ -330,10 +312,11 @@ class AuthManagerController extends AdminController {
 		foreach ( $user_groups as $value ) {
 			$ids [] = $value ['group_id'];
 		}
-		$nickname = D ( 'Member' )->getNickName ( $uid );
+		$nickname = D ( 'Common/User' )->getNickName ( $uid );
 		$this->assign ( 'nickname', $nickname );
 		$this->assign ( 'auth_groups', $auth_groups );
 		$this->assign ( 'user_groups', implode ( ',', $ids ) );
+		$this->meta_title = '用户组授权';
 		$this->display ();
 	}
 	
@@ -343,29 +326,20 @@ class AuthManagerController extends AdminController {
 	 * @author 朱亚杰 <zhuyajie@topthink.net>
 	 */
 	public function addToGroup() {
-		$members = I ( 'members' );
-		$members = wp_explode ( $members );
-		$map ['nickname'] = array (
-				'in',
-				$members 
-		);
-		$uid = M ( 'member' )->where ( $map )->getFields ( 'id' );
+		$uid = I ( 'uid' );
+		$gid = I ( 'group_id' );
 		if (empty ( $uid )) {
 			$this->error ( '参数有误' );
 		}
-		$uid = implode(',', $uid);
-		
-		$gid = I ( 'group_id' );
-		
 		$AuthGroup = D ( 'AuthGroup' );
 		if (is_numeric ( $uid )) {
 			if (is_administrator ( $uid )) {
 				$this->error ( '该用户为超级管理员' );
 			}
-			if (! M ( 'Member' )->where ( array (
+			if (! M ( 'User' )->where ( array (
 					'uid' => $uid 
 			) )->find ()) {
-				$this->error ( '管理员用户不存在' );
+				$this->error ( '用户不存在' );
 			}
 		}
 		
@@ -451,20 +425,6 @@ class AuthManagerController extends AdminController {
 			$this->success ( '操作成功' );
 		} else {
 			$this->error ( '操作失败' );
-		}
-	}
-	public function public_count() {
-		$uid = I ( 'uid', 0, 'intval' );
-		if (IS_POST) {
-			$map ['uid'] = $uid;
-			$public_count = intval ( $_POST ['public_count'] );
-			M ( 'member' )->where ( $map )->setField ( 'public_count', $public_count );
-			$this->success ( '设置完成', U ( 'Admin/User/index' ) );
-		} else {
-			$public_count = getPublicMax ( $uid );
-			$this->assign ( 'public_count', $public_count );
-			
-			$this->display ();
 		}
 	}
 }

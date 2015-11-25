@@ -47,7 +47,9 @@ class TestController extends AddonsController {
 		$param ['test_id'] = I ( 'id', 0, 'intval' );
 		$url = addons_url ( 'Test://Test/show', $param );
 		// dump($url);
-		redirect ( $url );
+// 		redirect ( $url );
+		$this->assign('url', $url);
+		$this->display(SITE_PATH . '/Application/Home/View/default/Addons/preview.html');
 	}
 	function show($html = 'show') {
 		$map ['id'] = $test_id = I ( 'test_id', 0, 'intval' );
@@ -60,7 +62,6 @@ class TestController extends AddonsController {
 		$map ['test_id'] = $test_id;
 		$score = M ( 'test_answer' )->where ( $map )->getField ( 'sum(score) as total' );
 		$this->assign ( 'score', $score );
-		
 		// 评语
 		preg_match_all ( '/\[([0-9]*-[0-9]*)\]/', $info ['finish_tip'], $matches );
 		
@@ -87,19 +88,20 @@ class TestController extends AddonsController {
 	}
 	function profile() {
 		$map ['id'] = $this->mid;
-		$info = M ( 'follow' )->where ( $map )->find ();
+		$info =get_userinfo($map['id']);
 		$this->assign ( 'info', $info );
 		
 		if (IS_POST) {
-			if (! empty ( $_POST ['nickname'] ) && $_POST ['nickname'] != $info ['nickname']) {
-				$data ['nickname'] = I ( 'post.nickname' );
+			if (! empty ( $_POST ['truename'] ) && $_POST ['truename'] != $info ['truename']) {
+				$data ['truename'] = I ( 'post.truename' );
 			}
 			if (! empty ( $_POST ['mobile'] ) && $_POST ['mobile'] != $info ['mobile']) {
 				$data ['mobile'] = I ( 'post.mobile' );
 			}
 			
 			if (! empty ( $data )) {
-				$res = M ( 'follow' )->where ( $map )->save ( $data );
+// 				$res = M ( 'follow' )->where ( $map )->save ( $data );
+			    $res=D ( 'Common/User' )->updateInfo($map['id'],$data);
 			}
 			
 			redirect ( U ( 'test', 'test_id=' . $_REQUEST ['test_id'] ) );

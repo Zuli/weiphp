@@ -1,45 +1,62 @@
 <!-- 提示 -->
 <div id="top-alert" class="top-alert-tips alert-error" style="display: none;">
   <a class="close" href="javascript:;"><b class="fa fa-times-circle"></b></a>
-  <div class="alert-content">这是内容</div>
+  <div class="alert-content"></div>
 </div>
 <!-- 导航条
 ================================================== -->
 <div class="navbar navbar-inverse navbar-fixed-top">
-    <div class="navbar-inner">
-       <a class="brand" title="{:C('WEB_SITE_TITLE')}" href="{:U('index/index')}"><img height="45" src="<php>if(C('SYSTEM_LOGO')) { echo C('SYSTEM_LOGO'); }else{ </php>__IMG__/top_logo.png?v={:SITE_VERSION} <php> } </php>" title="{:C('WEB_SITE_TITLE')}"/></a>
-            
-            
+    <div class="wrap">
+    
+       <a class="brand" title="{:C('WEB_SITE_TITLE')}" href="{:U('index/index')}">
+       <notempty name="userInfo[website_logo]">
+       		<img height="52" src="{$userInfo.website_logo|get_cover_url}"/>
+       	<else/>
+       		<img height="52" src="__IMG__/logo.png"/>
+       </notempty>
+       </a>
+        <if condition="is_login()">
+        	<div class="switch_mp">
+            	<a href="#">{$public_info.public_name}<b class="pl_5 fa fa-sort-down"></b></a>
+                <ul>
+                <volist name='myPublics' id='vo'>
+                	<li><a href="{:U('home/index/main', array('publicid'=>$vo[mp_id]))}">{$vo.public_name}</a></li>
+                    </volist>
+                </ul>
+            </div>
+        </if>
+      <php> $index_2 = strtolower ( MODULE_NAME . '/' . CONTROLLER_NAME . '/*' ); $index_3 = strtolower ( MODULE_NAME . '/' . CONTROLLER_NAME . '/' . ACTION_NAME ); </php>
+       
             <div class="top_nav">
                 <if condition="is_login()">
                     <ul class="nav" style="margin-right:0">
-                    	<li class="dropdown">						     
-                             <!-- 显示代码bug修改 -->
-							 <if condition="$mp_ids_list gt  0">
-								   <notempty  name="$member_public.public_name">
-									  <a href="{:U('home/MemberPublic/lists')}" class="dropdown-toggle login-nav" data-toggle="dropdown" title="公众号管理">公众号管理								
-									  <b class="pl_5 fa fa-sort-down"></b></a>   
-								  </notempty>							
-								  <empty  name="$member_public.public_name">
-									<a href="#" class="dropdown-toggle login-nav" data-toggle="dropdown" title="{$member_public.public_name}">{$member_public.public_name|msubstr_local=0,5,'utf-8'}<b class="pl_5 fa fa-sort-down"></b></a>
-								  </empty>		
-							 <else />
-							     <a href="#" class="dropdown-toggle login-nav" data-toggle="dropdown" title="未设置公众号"><font color="red">未设置公众号</font>						
-									  <b class="pl_5 fa fa-sort-down"></b></a>   
-							 </if>
-                            <ul class="dropdown-menu" style="display:none">
-							    <!-- 显示代码bug修改 	
-								  <li><a href="{:U('home/MemberPublic/lists')}">公众号管理</a></li>	
-								-->									
-                                <volist name='member_public_list' id='vo'>
-                                <li><a href="{:U('home/MemberPublic/changPublic','id='.$vo['id'])}" title="{$vo.public_name}">{$vo.public_name|msubstr_local=0,5,'utf-8'}</a></li>
-                                </volist>
-                            </ul>
-                        </li>
+                    	<if condition="$myinfo.is_init eq 0 ">
+                    		<li><p>该账号配置信息尚未完善，功能还不能使用</p></li>
+                    		<elseif condition="$myinfo.is_audit eq 0 and !$reg_audit_switch" />
+                    		<li><p>该账号配置信息已提交，请等待审核</p></li>
+                            <elseif condition="$index_2 eq 'home/public/*' or $index_3 eq 'home/user/profile' or $index_2 eq 'home/publiclink/*'" />
+                    		
+                    		<else /> 
+                    		<volist name='core_top_menu' id='ca'>
+                           		<li data-id="{$ca.id}" class="{$ca.class}"><a href="{$ca.url}">{$ca.title}</a></li>
+                       		</volist>
+                    	</if>
+                    	
+                    	
+                        
                         <li class="dropdown admin_nav">
-                            <a href="#" class="dropdown-toggle login-nav" data-toggle="dropdown" style="">{:get_username()} <b class="pl_5 fa fa-sort-down"></b></a>
+                            <a href="#" class="dropdown-toggle login-nav" data-toggle="dropdown" style="">
+                                <notempty name="myinfo[headimgurl]">
+                                    <img class="admin_head url" src="{$myinfo.headimgurl}"/>
+                                <else/>
+                                    <img class="admin_head default" src="__IMG__/default.png"/>
+                                </notempty>
+                                {$myinfo.nickname|getShort=4}<b class="pl_5 fa fa-sort-down"></b>
+                            </a>
                             <ul class="dropdown-menu" style="display:none">
-                                <li><a href="{:U('Admin/index/index')}">后台管理</a></li>
+                               <if condition="$mid==C('USER_ADMINISTRATOR')"><li><a href="{:U ('Admin/Index/Index')}" target="_blank">后台管理</a></li></if>
+                            	<li><a href="{:U ('Home/Public/lists')}">公众号列表</a></li>
+                                <li><a href="{:U ('Home/Public/add')}">账号配置</a></li>
                                 <li><a href="{:U('User/profile')}">修改密码</a></li>
                                 <li><a href="{:U('User/logout')}">退出</a></li>
                             </ul>

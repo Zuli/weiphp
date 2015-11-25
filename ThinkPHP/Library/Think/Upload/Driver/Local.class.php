@@ -25,22 +25,24 @@ class Local{
 
     /**
      * 构造函数，用于设置上传根路径
-     * @param string $root 根目录
      */
-	public function __construct($root, $config = null){
-        $this->rootPath = $root;
-	}
+    public function __construct($config = null){
+
+    }
 
     /**
      * 检测上传根目录
+     * @param string $rootpath   根目录
      * @return boolean true-检测通过，false-检测失败
      */
-    public function checkRootPath(){
-		$this->checkSavePath($this->rootPath);
-        if(!(is_dir($this->rootPath) && is_writable($this->rootPath))){
-            $this->error = '上传根目录不存在！请尝试手动创建:'.$this->rootPath;
+    public function checkRootPath($rootpath){
+		if(!is_dir($rootpath) && function_exists('mkdirs')) mkdirs($rootpath);
+		
+        if(!(is_dir($rootpath) && is_writable($rootpath))){
+            $this->error = '上传根目录不存在！请尝试手动创建:'.$rootpath;
             return false;
         }
+        $this->rootPath = $rootpath;
         return true;
     }
 
@@ -49,19 +51,19 @@ class Local{
      * @param  string $savepath 上传目录
      * @return boolean          检测结果，true-通过，false-失败
      */
-	public function checkSavePath($savepath){
+    public function checkSavePath($savepath){
         /* 检测并创建目录 */
-    	if (!$this->mkdir($savepath)) {
-    		return false;
-    	} else {
+        if (!$this->mkdir($savepath)) {
+            return false;
+        } else {
             /* 检测目录是否可写 */
-    		if (!is_writable($this->rootPath . $savepath)) {
-    			$this->error = '上传目录 ' . $savepath . ' 不可写！';
-    			return false;
-    		} else {
+            if (!is_writable($this->rootPath . $savepath)) {
+                $this->error = '上传目录 ' . $savepath . ' 不可写！';
+                return false;
+            } else {
                 return true;
             }
-    	}
+        }
     }
 
     /**
@@ -70,7 +72,7 @@ class Local{
      * @param  boolean $replace 同名文件是否覆盖
      * @return boolean          保存状态，true-成功，false-失败
      */
-    public function save($file, $replace) {
+    public function save($file, $replace=true) {
         $filename = $this->rootPath . $file['savepath'] . $file['savename'];
 
         /* 不覆盖同名文件 */ 
@@ -78,13 +80,18 @@ class Local{
             $this->error = '存在同名文件' . $file['savename'];
             return false;
         }
-
-        /* 移动文件 */
-        if (!move_uploaded_file($file['tmp_name'], $filename)) {
-            $this->error = '文件上传保存错误！';
-            return false;
+        if (!is_uploaded_file($file['tmp_name'])){
+            if (!copy($file['tmp_name'], $filename)){
+                $this->error = '文件上传保存错误！';
+                return false;
+            }
+        }else{
+            if (!move_uploaded_file($file['tmp_name'], $filename)) {
+                /* 移动文件 */
+                $this->error = '文件上传保存错误！';
+                return false;
+            }
         }
-        
         return true;
     }
 

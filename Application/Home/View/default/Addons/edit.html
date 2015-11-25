@@ -1,6 +1,6 @@
 <extend name="Base/common" />
 <block name="body">
-  <script type="text/javascript" src="__STATIC__/uploadify/jquery.uploadify.min.js"></script>
+  
   <!-- 标签页导航 -->
   <div class="span9 page_message">
     <section id="contents">
@@ -8,15 +8,11 @@
       <div class="tab-content"> 
         <!-- 表单 -->
         <php> $post_url || $post_url = U('edit?model='.$model['id'], $get_param);</php>
-        <form id="form" action="{:$post_url}" method="post" class="form-horizontal form-center">
-          <!-- 基础文档模型 -->
-          <volist name=":parse_config_attr($model['field_group'])" id="group">
-            <div id="tab{$key}" class="tab-pane <eq name="key" value="1">in
-              </eq>
-              tab{$key}">
-              <volist name="fields[$key]" id="field">
+        <form id="form" action="{$post_url}" method="post" class="form-horizontal form-center">
+          
+              <volist name="fields" id="field">
                 <if condition="$field['is_show'] == 4">
-                  <input type="hidden" class="text input-large" name="{$field.name}" value="{$data[$field['name']]}">
+                  <input type="hidden" class="text" name="{$field.name}" value="{$data[$field['name']]}">
                 </if>
                 <if condition="$field['is_show'] == 1 || $field['is_show'] == 3 || ($field['is_show'] == 5 && I($field['name']) )">
                   <div class="form-item cf toggle-{$field.name}">
@@ -29,7 +25,7 @@
                     <div class="controls">
                       <switch name="field.type">
                         <case value="num">
-                          <input type="number" class="text input-medium" name="{$field.name}" value="{$data[$field['name']]}">
+                          <input type="number" class="text" name="{$field.name}" value="{$data[$field['name']]}">
                         </case>
                         <case value="string">
                           <input type="text" class="text input-large" name="{$field.name}" value="{$data[$field['name']]}">
@@ -40,19 +36,27 @@
                           </label>
                         </case>
                         <case value="datetime">
-                          <input type="datetime" name="{$field.name}" class="text input-large time" value="{$data[$field['name']]|time_format}" placeholder="请选择时间" />
+                          <input type="datetime" name="{$field.name}" class="text time" value="{$data[$field['name']]|time_format}" placeholder="请选择时间" />
                         </case>
                         <case value="date">
-                          <input type="datetime" name="{$field.name}" class="text input-large date" value="{$data[$field['name']]|time_format='Y-m-d'}" placeholder="请选择时间" />
+                          <input type="datetime" name="{$field.name}" class="text date" value="{$data[$field['name']]|time_format='Y-m-d'}" placeholder="请选择时间" />
                         </case>                        
                         <case value="bool">
-                          <select name="{$field.name}">
-                            <volist name=":parse_field_attr($field['extra'])" id="vo"> <option value="{$key}" class="toggle-data" toggle-data="{$vo|get_hide_attr}"
-                              <eq name="data[$field['name']]" value="$key">selected</eq>
-                              >{$vo|clean_hide_attr}
-                              </option>
-                            </volist>
-                          </select>
+                          <volist name=":parse_field_attr($field['extra'])" id="vo">
+                          	<div class="check-item">
+							<!--[if !IE]><!-->  
+								  <input type="radio" class="regular-radio toggle-data" value="{$key}" id="{$field.name}_{$key}" name="{$field.name}" toggle-data="{$vo|get_hide_attr}"
+								  <eq name="data[$field['name']]" value="$key">checked="checked"</eq> />
+								  <label for="{$field.name}_{$key}"></label>{$vo|clean_hide_attr} 
+							  <!--<![endif]-->
+							   <!--[if IE]>
+							       <input type="radio" value="{$key}" 
+								   id="{$field.name}_{$key}" name="{$field.name}" class="toggle-data" toggle-data="{$vo|get_hide_attr}"
+								  <eq name="data[$field['name']]" value="$key">checked="checked"</eq>/> 
+								  <label for="{$field.name}_{$key}"></label>{$vo|clean_hide_attr}
+							   <![endif]-->
+                             </div>
+                          </volist>
                         </case>
                         <case value="select">
                           <select name="{$field.name}">
@@ -66,7 +70,19 @@
                         <case value="cascade">
                         <div id="cascade_{$field.name}"></div>
                         {:hook('cascade', array('name'=>$field['name'],'value'=>$data[$field['name']],'extra'=>$field['extra']))}
-                        </case>                          
+                        </case>                      
+                        <case value="dynamic_select">
+                        <div id="dynamic_select_{$field.name}"></div>
+                        {:hook('dynamic_select', array('name'=>$field['name'],'value'=>$data[$field['name']],'extra'=>$field['extra']))}
+                        </case>   
+                        <case value="news">
+                        <div id="news_{$field.name}"></div>
+                        {:hook('news', array('name'=>$field['name'],'value'=>$data[$field['name']],'extra'=>$field['extra']))}
+                        </case> 
+                        <case value="image">
+                        <div id="image_{$field.name}"></div>
+                        {:hook('image', array('name'=>$field['name'],'value'=>$data[$field['name']],'extra'=>$field['extra']))}
+                        </case>                                                    
                         <case value="radio">
                           <volist name=":parse_field_attr($field['extra'])" id="vo">
                           	<div class="check-item">
@@ -95,57 +111,41 @@
                         </case>
                         <case value="editor">
                           <label class="textarea">
-                            <textarea name="{$field.name}">{$data[$field['name']]}</textarea>
+                            <textarea name="{$field.name}" style="width:405px; height:100px;">{$data[$field['name']]}</textarea>
                             {:hook('adminArticleEdit', array('name'=>$field['name'],'value'=>$data[$field['name']]))} </label>
                         </case>
                         <case value="picture">
-                          <div class="controls uploadrow2" title="点击修改图片">
+                          <div class="controls uploadrow2" title="点击修改图片" rel="{$field.name}">
                             <input type="file" id="upload_picture_{$field.name}">
                             <input type="hidden" name="{$field.name}" id="cover_id_{$field.name}" value="{$data[$field['name']]}"/>
-                            
                             <div class="upload-img-box">
                               <notempty name="data[$field['name']]">
-                                <div class="upload-pre-item2"><img width="180" height="100" src="__ROOT__{$data[$field['name']]|get_cover='path'}"/></div>
+                                <div class="upload-pre-item2"><img width="100" height="100" src="{$data[$field['name']]|get_cover_url}"/></div>
+                                <em class="edit_img_icon">&nbsp;</em>
                               </notempty>
                             </div>
                           </div>
-                         
-                          <script type="text/javascript">
-								//上传图片
-							    /* 初始化上传插件 */
-								$("#upload_picture_{$field.name}").uploadify({
-							        "height"          : 100,
-							        "swf"             : "__STATIC__/uploadify/uploadify.swf",
-							        "fileObjName"     : "download",
-							        "buttonText"      : "上传图片",
-							        "uploader"        : "{:U('home/File/uploadPicture',array('session_id'=>session_id()))}",
-							        "width"           : 180,
-							        'removeTimeout'	  : 1,
-							        'fileTypeExts'	  : '*.jpg; *.png; *.gif;',
-							        "onUploadSuccess" : uploadPicture{$field.name}
-							    });
-								function uploadPicture{$field.name}(file, data){
-							    	var data = $.parseJSON(data);
-							    	var src = '';
-							        if(data.status){
-							        	$("#cover_id_{$field.name}").val(data.id);
-							        	src = data.url || '__ROOT__' + data.path;
-							        	$("#cover_id_{$field.name}").parent().find('.upload-img-box').html(
-							        		'<div class="upload-pre-item2"><img width="180" height="100" src="' + src + '"/></div>'
-							        	);
-										$('.weixin-cover-pic').attr('src',src);
-							        } else {
-							        	updateAlert(data.info);
-							        	setTimeout(function(){
-							                $('#top-alert').find('.close').click();
-							                $(that).removeClass('disabled').prop('disabled',false);
-							            },1500);
-							        }
-							    }
-								</script> 
+                        </case>
+                        <case value="mult_picture">
+                            <div class="mult_imgs">
+                                <div class="upload-img-view" id='mutl_picture_{$field.name}'>
+                                  <notempty name="data[$field['name']]">
+                                  	<volist name="data[$field['name']]" id="vo">
+                                    <div class="upload-pre-item22">
+                                    <img width="100" height="100" src="{$vo|get_cover_url}"/>
+                                    <input type="hidden" name="{$field.name}[]" value="{$vo}"/>
+                                    <em>&nbsp;</em>
+                                    </div>
+                                    </volist>
+                                  </notempty>
+                                </div>
+                                <div class="controls uploadrow2 mult" title="点击上传图片" rel="{$field.name}">
+                                  <input type="file" id="upload_picture_{$field.name}">
+                                </div>
+                            </div>
                         </case>
                         <case value="file">
-                          <div class="controls upload_file">
+                          <div class="controls upload_file" rel="{$field.name}">
                             <input type="file" id="upload_file_{$field.name}">
                             <input type="hidden" name="{$field.name}" value="{$data[$field['name']]}"/>
                             <div class="upload-img-box">
@@ -154,38 +154,73 @@
                               </present>
                             </div>
                           </div>
-                          <script type="text/javascript">
-								//上传图片
-							    /* 初始化上传插件 */
-								$("#upload_file_{$field.name}").uploadify({
-							        "height"          : 30,
-							        "swf"             : "__STATIC__/uploadify/uploadify.swf",
-							        "fileObjName"     : "download",
-							        "buttonText"      : "上传附件",
-							        "uploader"        : "{:U('File/upload',array('session_id'=>session_id()))}",
-							        "width"           : 120,
-							        'removeTimeout'	  : 1,
-							        "onUploadSuccess" : uploadFile{$field.name}
-							    });
-								function uploadFile{$field.name}(file, data){
-									var data = $.parseJSON(data);
-							        if(data.status){
-							        	var name = "{$field.name}";
-							        	$("input[name="+name+"]").val(data.id);
-							        	$("input[name="+name+"]").parent().find('.upload-img-box').html(
-							        		"<div class=\"upload-pre-file\"><span class=\"upload_icon_all\"></span>" + data.name + "</div>"
-							        	);
-										
-							        } else {
-							        	updateAlert(data.info);
-							        	setTimeout(function(){
-							                $('#top-alert').find('button').click();
-							                $(that).removeClass('disabled').prop('disabled',false);
-							            },1500);
-							        }
-							    }
-								</script> 
+                          
                         </case>
+                        <case value="user">
+                        <div class="controls">
+                            <div id="userList" class="common_add_list fl">
+                                <notempty name="data[$field['name']]">
+                                    <div class="item" onClick="$.WeiPHP.selectSingleUser('{:addons_url('UserCenter://UserCenter/lists')}','{$field.name}');">
+                                        <php>
+                                            $userInfo = getUserInfo($data[$field['name']]);
+                                            
+                                        </php>
+                                        <img src="{$userInfo['headimgurl']}"/><br/><span>{$userInfo['nickname']}</span>
+                                        <input type="hidden" name="{$field.name}'" value="{$data[$field['name']]}"/>
+                                        <span class="name">{$userInfo['nickname']}</span>
+                                    </div>
+                                <else/>
+                                <a href="javascript:;" class="common_add_btn fl" onClick="$.WeiPHP.selectSingleUser('{:addons_url('UserCenter://UserCenter/lists')}','{$field.name}');"></a>
+                                </notempty>
+                           </div>
+                        </div>
+                      </case>
+                      <case value="users">
+                        <div class="controls">
+                            <div id="userList" class="common_add_list fl">
+                                <notempty name="data[$field['name']]">
+                                	<php>
+                                            $userIds = explode(',',$data[$field['name']]);
+                                    </php>
+                                	<volist name="userIds" id="uid">
+                                    <php>
+                                            $userInfo = getUserInfo($uid);
+                                            
+                                    </php>
+                                    <div class="item" onClick="$.WeiPHP.selectSingleUser('{:addons_url('UserCenter://UserCenter/lists')}','{$field.name}');">
+                                        <php>
+                                            $userInfo = getUserInfo($data[$field['name']]);
+                                            
+                                        </php>
+                                        <img src="{$userInfo['headimgurl']}"/><br/><span>{$userInfo['nickname']}</span>
+                                        <input type="hidden" name="{$field.name}'[]" value="{$data[$field['name']]}"/>
+                                        <span class="name">{$userInfo['nickname']}</span>
+                                    </div>
+                                    </volist>
+                                </notempty>
+                               <a href="javascript:;" class="common_add_btn fl" onClick="$.WeiPHP.selectMutiUser('{:addons_url('UserCenter://UserCenter/lists')}',9,'{$field.name}');"></a>
+                           </div>
+                        </div>
+                      </case>
+                      <case value="admin">
+                        <div class="controls">
+                            <div id="userList" class="common_add_list fl">
+                                <notempty name="data[$field['name']]">
+                                    <div class="item" onClick="$.WeiPHP.selectSingleUser('{:addons_url('UserCenter://UserCenter/admin_lists')}','{$field.name}');">
+                                        <php>
+                                            $userInfo = getUserInfo($data[$field['name']]);
+                                            
+                                        </php>
+                                        <img src="{$userInfo['headimgurl']}"/><br/><span>{$userInfo['nickname']}</span>
+                                        <input type="hidden" name="{$field.name}'" value="{$data[$field['name']]}"/>
+                                        <span class="name">{$userInfo['nickname']}</span>
+                                    </div>
+                                <else/>
+                                <a href="javascript:;" class="common_add_btn fl" onClick="$.WeiPHP.selectSingleUser('{:addons_url('UserCenter://UserCenter/admin_lists')}','{$field.name}');"></a>
+                                </notempty>
+                           </div>
+                        </div>
+                      </case>                      
                         <default/>
                         <input type="text" class="text input-large" name="{$field.name}" value="{$data[$field['name']]}">
                       </switch>
@@ -193,14 +228,13 @@
                   </div>
                 </if>
               </volist>
-            </div>
-          </volist>
-          <div class="form-item cf">
+           
+        </div>
+        <div class="form-item form_bh" style="text-align:center">
             <notempty name="data.id"><input type="hidden" name="id" value="{$data.id}"></notempty>
             <button class="btn submit-btn ajax-post" id="submit" type="submit" target-form="form-horizontal">{$submit_name|default='确 定'}</button>
           </div>
-        </form>
-        <include file="Addons/weixinPreview"/>
+      </form>
       </div>
     </section>
   </div>
@@ -214,11 +248,11 @@
   <script type="text/javascript" src="__STATIC__/datetimepicker/js/bootstrap-datetimepicker.min.js"></script> 
   <script type="text/javascript" src="__STATIC__/datetimepicker/js/locales/bootstrap-datetimepicker.zh-CN.js?v={:SITE_VERSION}" charset="UTF-8"></script> 
   <script type="text/javascript">
-$('#submit').click(function(){
-    $('#form').submit();
-});
-
-$(function(){    $('.time').datetimepicker({
+  $(function(){
+	initUploadImg();
+	initUploadFile();
+   
+   $('.time').datetimepicker({
         format: 'yyyy-mm-dd hh:ii',
         language:"zh-CN",
         minView:0,

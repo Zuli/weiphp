@@ -25,6 +25,14 @@ class SnController extends AddonsController {
 		$this->assign ( 'search_button', false );
 		$this->assign ( 'check_all', false );
 		
+		$top_more_button [] = array (
+				'title' => '导出数据',
+				'url' => U ( 'export', array (
+						'target_id' => I ( 'target_id' ) 
+				) ) 
+		);
+		$this->assign ( 'top_more_button', $top_more_button );
+		
 		$model = $this->getModel ( $this->table );
 		$page = I ( 'p', 1, 'intval' ); // 默认显示第一页数据
 		                                
@@ -62,31 +70,63 @@ class SnController extends AddonsController {
 		
 		$this->display ();
 	}
+	function export() {
+		$model = $this->getModel ( 'sn_code' );
+		
+		// 搜索条件
+		$map ['addon'] = $this->addon;
+		$map ['target_id'] = I ( 'target_id' );
+		$map ['token'] = get_token ();
+		session ( 'common_condition', $map );
+		
+		parent::common_export ( $model );
+	}
 	function del() {
-		$model = $this->getModel ( $this->table );
+		$model = $this->getModel ( 'sn_code' );
 		parent::del ( $model );
 	}
-	function set_use() {
-		$map ['id'] = I ( 'id' );
-		$map ['token'] = get_token ();
-		$data = M ( $this->table )->where ( $map )->find ();
-		if (! $data) {
+	function test3() {
+		$id = I ( 'id' );
+		$res = D ( 'Common/SnCode' )->set_use ( $id );
+		if ($res == - 1) {
 			$this->error ( '数据不存在' );
-		}
-		
-		if ($data ['is_use']) {
-			$data ['is_use'] = 0;
-			$data ['use_time'] = '';
-		} else {
-			$data ['is_use'] = 1;
-			$data ['use_time'] = time ();
-		}
-		
-		$res = M ( $this->table )->where ( $map )->save ( $data );
-		if ($res) {
+		} elseif ($res) {
+			$map ['is_use'] = 1;
+			$map ['target_id'] = $data ['target_id'];
+			$map ['addon'] = 'Coupon';
+			$save ['use_count'] = intval ( D ( 'Common/SnCode' )->where ( $map )->count () );
+			D ( 'Coupon' )->update ( $data ['target_id'], $save );
 			$this->success ( '设置成功' );
 		} else {
 			$this->error ( '设置失败' );
 		}
+	}
+	function set_use() {
+	    $id = I ( 'id' );
+	    $dao = D ( 'Common/SnCode' );
+	    $data = $dao->getInfoById ( $id );
+	    if (! $data) {
+	        $this->error ( '数据不存在' );
+	    }
+	
+	    if ($data ['is_use']) {
+	        $data ['is_use'] = 0;
+	        $data ['use_time'] = '';
+	    } else {
+	        $data ['is_use'] = 1;
+	        $data ['use_time'] = time ();
+	    }
+	
+	    $res = $dao->update ( $id, $data );
+	    if ($res) {
+	        $map ['is_use'] = 1;
+	        $map ['target_id'] = $data ['target_id'];
+	        $map ['addon'] = 'Coupon';
+	        $save ['use_count'] = intval ( $dao->where ( $map )->count () );
+	        D ( 'Coupon' )->update ( $data ['target_id'], $save );
+	        $this->success ( '设置成功' );
+	    } else {
+	        $this->error ( '设置失败' );
+	    }
 	}
 }

@@ -24,17 +24,17 @@ class PublicGroupController extends AdminController {
 			$nameArr [$v ['id']] = $v ['title'];
 		}
 		
-		$public_list = M ( 'member_public' )->field ( 'group_id,count(id) as public_count' )->group ( 'group_id' )->select ();
+		$public_list = M ( 'public' )->field ( 'group_id,count(id) as public_count' )->group ( 'group_id' )->select ();
 		foreach ( $public_list as $p ) {
 			$public_count [$p ['group_id']] = $p ['public_count'];
 		}
 		
 		// 获取模型信息
-		$model = M ( 'Model' )->getByName ( 'member_public_group' );
+		$model = M('model')->getByName ( 'public_group' );
 		$list_data = $this->_get_model_list ( $model, $page );
 		foreach ( $list_data ['list_data'] as &$vo ) {
 			$vo ['addon_status'] = explode ( ',', $vo ['addon_status'] );
-			$vo ['addon_status'] = array_diff ( $all_ids, $vo ['addon_status'] );
+			$vo ['addon_status'] = array_diff ( (array)$all_ids, (array)$vo ['addon_status'] );
 			$vo ['addon_status'] = $this->_idToName ( $vo ['addon_status'], $nameArr );
 			
 			$vo ['public_count'] = intval ( $public_count [$vo ['id']] );
@@ -61,7 +61,7 @@ class PublicGroupController extends AdminController {
 			foreach ( $addon_list as $v ) {
 				$all_ids [] = $v ['id'];
 			}
-			$_POST ['addon_status'] = array_diff ( $all_ids, $_POST ['addon_status'] );
+			$_POST ['addon_status'] = array_diff ( (array)$all_ids, (array)$_POST ['addon_status'] );
 			
 			$Model = D ( parse_name ( get_table_name ( $model ['id'] ), 1 ) );
 			// 获取模型的字段信息
@@ -74,7 +74,7 @@ class PublicGroupController extends AdminController {
 		} else {
 			
 			$fields = get_model_attribute ( $model ['id'] );
-			$this->_deal_addon ( $fields [1] [1] );
+			$this->_deal_addon ( $fields );
 			
 			$this->assign ( 'fields', $fields );
 			$this->meta_title = '新增' . $model ['title'];
@@ -86,7 +86,7 @@ class PublicGroupController extends AdminController {
 		parent::common_del ();
 	}
 	function editPublicGroup() {
-		$model = $this->getModel ( 'member_public_group' );
+		$model = $this->getModel ( 'public_group' );
 		$id = I ( 'id', 0, 'intval' );
 		
 		if (IS_POST) {
@@ -94,7 +94,7 @@ class PublicGroupController extends AdminController {
 			foreach ( $addon_list as $v ) {
 				$all_ids [] = $v ['id'];
 			}
-			$_POST ['addon_status'] = array_diff ( $all_ids, $_POST ['addon_status'] );
+			$_POST ['addon_status'] = array_diff ( (array)$all_ids, (array)$_POST ['addon_status'] );
 			
 			$Model = D ( parse_name ( get_table_name ( $model ['id'] ), 1 ) );
 			// 获取模型的字段信息
@@ -106,14 +106,14 @@ class PublicGroupController extends AdminController {
 			}
 		} else {
 			$fields = get_model_attribute ( $model ['id'] );
-			$this->_deal_addon ( $fields [1] [1] );
+			$this->_deal_addon ( $fields );
 			
 			// 获取数据
 			$data = M ( get_table_name ( $model ['id'] ) )->find ( $id );
 			$data || $this->error ( '数据不存在！' );
 			
 			$data ['addon_status'] = explode ( ',', $data ['addon_status'] );
-			$data ['addon_status'] = array_diff ( $fields [1] [1] ['value'], $data ['addon_status'] );
+			$data ['addon_status'] = array_diff ( (array)$fields ['value'], (array)$data ['addon_status'] );
 			
 			$this->assign ( 'fields', $fields );
 			$this->assign ( 'data', $data );
@@ -124,7 +124,7 @@ class PublicGroupController extends AdminController {
 		}
 	}
 	public function delPublicGroup() {
-		$model = $this->getModel ( 'member_public_group' );
+		$model = $this->getModel ( 'public_group' );
 		
 		$ids = I ( 'id' );
 		if (empty ( $ids )) {
@@ -147,7 +147,7 @@ class PublicGroupController extends AdminController {
 				$map2 ['group_id'] = $map ['id'];
 			}
 			
-			M ( 'member_public' )->where ( $map2 )->save ( $save );
+			M ( 'public' )->where ( $map2 )->save ( $save );
 			
 			$this->success ( '删除成功' );
 		} else {
@@ -174,13 +174,13 @@ class PublicGroupController extends AdminController {
 			$nameArr [$v ['id']] = $v ['title'];
 		}
 		
-		$public_list = M ( 'member_public' )->field ( 'group_id,count(id) as public_count' )->group ( 'group_id' )->select ();
+		$public_list = M ( 'public' )->field ( 'group_id,count(id) as public_count' )->group ( 'group_id' )->select ();
 		foreach ( $public_list as $p ) {
 			$public_count [$p ['group_id']] = $p ['public_count'];
 		}
 		
 		// 获取模型信息
-		$model = M ( 'Model' )->getByName ( 'member_public' );
+		$model = M('model')->getByName ( 'public' );
 		$list_data = $this->_get_model_list ( $model, $page );
 		
 		$ids = getSubByKey ( $list_data ['list_data'], 'id' );
@@ -189,7 +189,7 @@ class PublicGroupController extends AdminController {
 					'in',
 					$ids 
 			);
-			$link = M ( 'member_public_link' )->where ( $map )->select ();
+			$link = M ( 'public_link' )->where ( $map )->select ();
 			
 			foreach ( $link as $k ) {
 				$admin [$k ['mp_id']] [] = get_nickname ( $k ['uid'] );
@@ -216,7 +216,7 @@ class PublicGroupController extends AdminController {
 		$this->assign ( $list_data );
 		$this->assign ( 'model', $model );
 		$this->meta_title = $model ['title'] . '管理';
-		$this->assign ( 'add_url', U('Home/MemberPublic/add') );
+		$this->assign ( 'add_url', U('Home/Public/add', array('from'=>5)) );
 		$this->display ( 'Think:lists' );
 	}
 	function PublicLink() {
@@ -224,7 +224,7 @@ class PublicGroupController extends AdminController {
 		redirect ( U ( 'admin/PublicLink/lists', $param ) );
 	}
 	function editPublicAdmin() {
-		$model = $this->getModel ( 'member_public' );
+		$model = $this->getModel ( 'public' );
 		$id = I ( 'id', 0, 'intval' );
 		
 		if (IS_POST) {
@@ -238,11 +238,11 @@ class PublicGroupController extends AdminController {
 			}
 		} else {
 			$fields = get_model_attribute ( $model ['id'] );
-			foreach ( $fields [1] as &$vo ) {
+			foreach ( $fields as &$vo ) {
 				if ($vo ['name'] == 'group_id') {
 					$vo ['is_show'] = 1;
 					
-					$group_list = M ( 'member_public_group' )->field ( 'id, title' )->select ();
+					$group_list = M ( 'public_group' )->field ( 'id, title' )->select ();
 					$extra = "0:无\n";
 					foreach ( $group_list as $g ) {
 						$extra .= $g ['id'] . ':' . $g ['title'] . "\n";
@@ -264,7 +264,7 @@ class PublicGroupController extends AdminController {
 		}
 	}
 	public function delPublicAdmin() {
-		$model = $this->getModel ( 'member_public' );
+		$model = $this->getModel ( 'public' );
 		
 		$ids = I ( 'id' );
 		if (empty ( $ids )) {

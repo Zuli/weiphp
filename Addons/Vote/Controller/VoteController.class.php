@@ -7,22 +7,32 @@ use Home\Controller\AddonsController;
 class VoteController extends AddonsController {
 	protected $model;
 	protected $option;
+	protected $vlog;
 	public function __construct() {
+		if (_ACTION == 'show') {
+			$GLOBALS ['is_wap'] = true;
+		}
+		
 		parent::__construct ();
-		$this->model = M ( 'Model' )->getByName ( $_REQUEST ['_controller'] );
+		$this->model = getModelByName ( $_REQUEST ['_controller'] );
 		$this->model || $this->error ( '模型不存在！' );
 		
 		$this->assign ( 'model', $this->model );
 		
-		$this->option = M ( 'Model' )->getByName ( 'vote_option' );
+		$this->option = getModelByName ( 'vote_option' );
 		$this->assign ( 'option', $this->option );
+		
+		$this->vlog = getModelByName ( 'vote_log' );
+		$this->assign ( 'vlog', $this->vlog );
 	}
 	/**
 	 * 显示指定模型列表数据
 	 */
 	public function lists() {
 		$page = I ( 'p', 1, 'intval' ); // 默认显示第一页数据
-		                                
+		$isAjax = I ( 'isAjax' );
+		$isRadio = I ( 'isRadio' );
+		 
 		// 解析列表规则
 		$list_data = $this->_list_grid ( $this->model );
 		$grids = $list_data ['list_grids'];
@@ -51,9 +61,9 @@ class VoteController extends AddonsController {
 		empty ( $fields ) || in_array ( 'id', $fields ) || array_push ( $fields, 'id' );
 		$name = parse_name ( get_table_name ( $this->model ['id'] ), true );
 		$data = M ( $name )->field ( empty ( $fields ) ? true : $fields )->where ( $map )->order ( 'id DESC' )->page ( $page, $row )->select ();
-		
+		//var_dump($data);
 		/* 查询记录总数 */
-		$count = M ( $name )->where ( $map )->count ();
+		$count = M ( 'vote' )->where ( $map )->count ();
 		
 		// 分页
 		if ($count > $row) {
@@ -61,11 +71,15 @@ class VoteController extends AddonsController {
 			$page->setConfig ( 'theme', '%FIRST% %UP_PAGE% %LINK_PAGE% %DOWN_PAGE% %END% %HEADER%' );
 			$this->assign ( '_page', $page->show () );
 		}
-		
 		$this->assign ( 'list_grids', $grids );
 		$this->assign ( 'list_data', $data );
 		$this->meta_title = $this->model ['title'] . '列表';
-		$this->display ( T ( 'Addons://Vote@Vote/lists' ) );
+		if ($isAjax) {
+		    $this->assign('isRadio',$isRadio);
+		    $this->display ( 'ajax_lists_data' );
+		} else {
+		    $this->display ( T ( 'Addons://Vote@Vote/lists' ) );
+		}
 	}
 	public function del() {
 		$ids = I ( 'id', 0 );
@@ -95,12 +109,13 @@ class VoteController extends AddonsController {
 		$id = I ( 'id', 0, 'intval' );
 		
 		if (IS_POST) {
-			$_POST ['mTime'] = time ();
 			
+			$this->checkPostData ();
 			$Model = D ( parse_name ( get_table_name ( $this->model ['id'] ), 1 ) );
 			// 获取模型的字段信息
 			$Model = $this->checkAttr ( $Model, $this->model ['id'] );
 			if ($Model->create () && $Model->save ()) {
+				D ( 'Vote' )->clear ( $id );
 				// 增加选项
 				D ( 'Addons://Vote/VoteOption' )->set ( I ( 'post.id' ), I ( 'post.' ) );
 				
@@ -132,14 +147,55 @@ class VoteController extends AddonsController {
 			$this->display ( T ( 'Addons://Vote@Vote/edit' ) );
 		}
 	}
+	function checkPostData() {
+		if (! I ( 'post.keyword' )) {
+			$this->error ( '关键词不能为空' );
+		}
+		if (strlen ( I ( 'post.keyword' ) ) > 50) {
+			$this->error ( '关键词应在50个字符内' );
+		}
+		if (! I ( 'post.title' )) {
+			$this->error ( '投票标题不能为空' );
+		}
+		
+		if (strlen ( I ( 'post.title' ) ) > 100) {
+			$this->error ( '投票标题应在100个字符内' );
+		}
+		if (! I ( 'post.description' )) {
+			$this->error ( '投票描述不能为空' );
+		}
+		if (! I ( 'post.start_date' )) {
+			$this->error ( '请选择开始时间' );
+		} else if (! I ( 'post.end_date' )) {
+			$this->error ( '请选择结束时间' );
+		} else if (strtotime ( I ( 'post.start_date' ) ) > strtotime ( I ( 'post.end_date' ) )) {
+			$this->error ( '开始时间不能大于结束时间' );
+		}
+		
+		// $_POST ['mTime'] = time ();
+		// dump($_POST['mTime']);die();
+		if (! I ( 'post.name' ) || count ( I ( 'post.name' ) ) < 2) {
+			$this->error ( '请添加至少两个投票选项！' );
+		} else {
+			$optionName = I ( 'post.name' );
+			foreach ( $optionName as $k => $v ) {
+				if (empty ( $v )) {
+					$this->error ( '选项标题不能为空' );
+				}
+			}
+		}
+	}
 	public function add() {
 		if (IS_POST) {
 			// 自动补充token
+			
 			$_POST ['token'] = get_token ();
+			$this->checkPostData ();
 			$Model = D ( parse_name ( get_table_name ( $this->model ['id'] ), 1 ) );
 			// 获取模型的字段信息
 			$Model = $this->checkAttr ( $Model, $this->model ['id'] );
 			if ($Model->create () && $vote_id = $Model->add ()) {
+				
 				// 增加选项
 				D ( 'Addons://Vote/VoteOption' )->set ( $vote_id, I ( 'post.' ) );
 				
@@ -163,7 +219,7 @@ class VoteController extends AddonsController {
 		}
 	}
 	protected function checkAttr($Model, $model_id) {
-		$fields = get_model_attribute ( $model_id, false );
+		$fields = get_model_attribute ( $model_id );
 		$validate = $auto = array ();
 		foreach ( $fields as $key => $attr ) {
 			if ($attr ['is_must']) { // 必填字段
@@ -211,25 +267,174 @@ class VoteController extends AddonsController {
 		return $Model->validate ( $validate )->auto ( $auto );
 	}
 	
+	// 显示投票记录
+	function showLog() {
+		$nav [0] ['title'] = "投票列表";
+		$nav [0] ['class'] = "";
+		$nav [0] ['url'] = U ( "lists" );
+		$nav [1] ['title'] = "投票记录";
+		$nav [1] ['class'] = "current";
+		$this->assign ( 'nav', $nav );
+		
+		$btn['url']=U('lists',array('mdm'=>$_GET['mdm']));
+		$btn['title']='返回';
+		$returnbtn[]=$btn;
+		$this->assign('top_more_button',$returnbtn);
+		$this->assign ( 'add_button', false );
+		$this->assign ( 'search_button', false );
+		$this->assign ( 'del_button', false );
+		$this->assign ( 'check_all', false );
+		
+		$model = $this->vlog;
+		
+		$page = I ( 'p', 1, 'intval' ); // 默认显示第一页数据
+		                                
+		// 解析列表规则
+		$list_data = $this->_list_grid ( $model );
+		
+		unset ( $list_data ['list_grids'] [4] );
+		
+		$grids = $list_data ['list_grids'];
+		$fields = $list_data ['fields'];
+		
+		// 搜索条件
+		// $map ['addon'] = $this->addon;
+		$map ['vote_id'] = I ( 'id' );
+		// $map ['token'] = get_token ();
+		session ( 'common_condition', $map );
+		// $map = $this->_search_map ( $model, $fields );
+		
+		$row = empty ( $model ['list_row'] ) ? 20 : $model ['list_row'];
+		
+		empty ( $fields ) || in_array ( 'id', $fields ) || array_push ( $fields, 'id' );
+		
+		$name = parse_name ( get_table_name ( $model ['id'] ), true );
+		$data = M ( $name )->field ( empty ( $fields ) ? true : $fields )->where ( $map )->order ( 'id DESC' )->page ( $page, $row )->select ();
+		//var_dump($data);
+		// 获取投票标题
+// 		$map2 ['id'] = I ( 'id' );
+// 		$vname = M ( 'vote' )->where ( $map2 )->getField ( 'title' );
+		
+		foreach ( $data as $v ) {
+			$option_ids [$v ['options']] = $v ['options'];
+		}
+		
+		// 代码须优化
+		// 获取投票选项名称
+		if (! empty ( $option_ids )) {
+			$map3 ['id'] = array (
+					'in',
+					$option_ids 
+			);
+			$list = M ( 'vote_option' )->where ( $map3 )->field ( 'id,name' )->select ();
+			
+			foreach ( $list as $vo ) {
+				$option_names [$vo ['id']] = $vo ['name'];
+			}
+		}
+		foreach ( $data as &$v ) {
+// 			$v ['vote_id'] = $vname;
+			$v ['options'] = $option_names [$v ['options']];
+			$user=get_userinfo($v['user_id']);
+			$v['vote_id']=url_img_html($user['headimgurl']);
+			
+			$v ['user_id'] = get_nickname ( $v ['user_id'] );
+			
+		}
+		
+		$count = M ( $name )->where ( $map )->count ();
+		$list_data ['list_data'] = $data;
+		
+		// 分页
+		if ($count > $row) {
+			$page = new \Think\Page ( $count, $row );
+			$page->setConfig ( 'theme', '%FIRST% %UP_PAGE% %LINK_PAGE% %DOWN_PAGE% %END% %HEADER%' );
+			$list_data ['_page'] = $page->show ();
+		}
+		unset($list_data["list_grids"][""]);
+		$this->assign ( $list_data );
+		//dump($list_data);
+		$this->display ( './Application/Home/View/default/Addons/lists.html' );
+	}
+	// 统计各选项的投票次数
+	function showCount() {
+		$vote_id = I ( 'id' );
+		
+		$nav [0] ['title'] = "投票列表";
+		$nav [0] ['class'] = "";
+		$nav [0] ['url'] = U ( "lists" );
+		$nav [1] ['title'] = "投票记录";
+		$nav [1] ['class'] = "";
+		$nav [1] ['url'] = addons_url ( 'Vote://Vote/showLog?id=' . $vote_id );
+		$nav [2] ['title'] = "选项票数";
+		$nav [2] ['class'] = "current";
+		$this->assign ( 'nav', $nav );
+		
+		$this->assign ( 'add_button', false );
+		$this->assign ( 'del_button', false );
+		$this->assign ( 'check_all', false );
+		$this->assign ( 'search_button', false );
+		
+		// 将缓存的数据，写入数据库
+		D ( 'VoteOption' )->updateOptCount ( $vote_id, null );
+		
+		$page = I ( 'p', 1, 'intval' );
+		$model = $this->option;
+		
+		$list_data = $this->_list_grid ( $model );
+		$fields = $list_data ['fields'];
+		$grids = $list_data ['list_grids'];
+		// 查询条件
+		$map ['vote_id'] = $vote_id;
+		// $map['token']=get_token();
+		session ( 'common_condition', $map );
+		// $map = $this->_search_map ( $model, $fields );
+		
+		$row = empty ( $model ['list_row'] ) ? 20 : $model ['list_row'];
+		empty ( $fields ) || in_array ( 'id', $fields ) || array_push ( $fields, 'id' );
+		$name = parse_name ( get_table_name ( $model ['id'] ), true );
+		$data = M ( $name )->field ( empty ( $fields ) ? true : $fields )->where ( $map )->order ( 'id ASC' )->page ( $page, $row )->select ();
+		$count = M ( $name )->where ( $map )->count ();
+		$list_data ['list_data'] = $data;
+		
+		// 分页
+		if ($count > $row) {
+			$page = new \Think\Page ( $count, $row );
+			$page->setConfig ( 'theme', '%FIRST% %UP_PAGE% %LINK_PAGE% %DOWN_PAGE% %END% %HEADER%' );
+			$list_data ['_page'] = $page->show ();
+		}
+		
+		$this->assign ( $list_data );
+		//dump($list_data);
+		//var_dump($list_grids);
+		$this->display ( './Application/Home/View/default/Addons/lists.html' );
+	}
 	/**
 	 * **************************微信上的操作功能************************************
 	 */
-	function show() {
+	function index() {
 		$vote_id = I ( 'id', 0, 'intval' );
 		$openid = get_openid ();
+		
+		// $openid = 'orgF0t7i-s4xXa2ucIVrm5BMca-Y';
+		// echo 'openid: '.$openid;die();
 		$token = get_token ();
-		
+		// dump($openid);die();
 		$info = $this->_getVoteInfo ( $vote_id );
-		
-		$canJoin = ! empty ( $openid ) && ! empty ( $token ) && ! ($this->_is_overtime ( $vote_id )) && ! ($this->_is_join ( $vote_id, $this->mid, $token ));
+		// echo $this->_is_overtime ( $vote_id )?'a':'b';die();
+		$overtime = $this->_is_overtime ( $vote_id );
+		$overtime = $overtime ? '1' : '0';
+		$this->assign ( 'overtime', $overtime );
+		$canJoin = ! empty ( $openid ) && ! empty ( $token ) && ! $overtime && ! ($this->_is_join ( $vote_id, $this->mid, $token ));
 		$this->assign ( 'canJoin', $canJoin );
-		// dump ( $canJoin );
-		// dump(! empty ( $openid ));dump(! empty ( $token ));dump(! ($this->_is_overtime ( $vote_id )));dump(! ($this->_is_join ( $vote_id, $openid, $token )));
-		
 		$test_id = intval ( $_REQUEST ['test_id'] );
-		$this->assign ( 'event_url', event_url ( '投票', $vote_id ) );
-		
-		$this->display ( T ( 'Addons://Vote@Vote/show' ) );
+		$this->display ();
+	}
+	function preview(){
+		$vote_id = I ( 'id', 0, 'intval' );
+		$url = U('index',array('id'=>$vote_id));
+		$this -> assign('url',$url);
+		$this->display ( SITE_PATH . '/Application/Home/View/default/Addons/preview.html' );
 	}
 	function _getVoteInfo($id) {
 		// 检查ID是否合法
@@ -237,13 +442,13 @@ class VoteController extends AddonsController {
 			$this->error ( "错误的投票ID" );
 		}
 		
-		$map ['id'] = $map2 ['vote_id'] = intval ( $id );
-		$info = M ( 'vote' )->where ( $map )->find ();
+		$map ['id'] = $map2 ['vote_id'] = $id = intval ( $id );
+		$info = D ( 'Vote' )->getInfo ( $id );
 		// dump(M ( 'vote' )->getLastSql());
 		$this->assign ( 'info', $info );
 		
 		// dump($info);
-		$opts = M ( 'vote_option' )->where ( $map2 )->order ( '`order` asc' )->select ();
+		$opts = D ( 'VoteOption' )->getList ( $id );
 		foreach ( $opts as $p ) {
 			$total += $p ['opt_count'];
 		}
@@ -281,42 +486,46 @@ class VoteController extends AddonsController {
 		$data ["options"] = implode ( ',', $opts_ids );
 		$data ["cTime"] = time ();
 		$addid = M ( "vote_log" )->add ( $data );
-		// 投票选项信息的num+1
-		foreach ( $opts_ids as $v ) {
-			$v = intval ( $v );
-			$res = M ( "vote_option" )->where ( 'id=' . $v )->setInc ( "opt_count" );
-		}
-		
+		D ( 'VoteLog' )->getFollowLog ( $this->mid, $vote_id, true );
+		// 更新投票数
+		D ( 'VoteOption' )->updateOptCount ( $vote_id, $opts_ids );
 		// 投票信息的vote_count+1
-		$res = M ( "vote" )->where ( 'id=' . $vote_id )->setInc ( "vote_count" );
+		// $res = M ( "vote" )->where ( 'id=' . $vote_id )->setInc ( "vote_count" );
+		$vote = D ( 'Vote' );
+		$voteinfo = $vote->getInfo ( $vote_id );
+		$up ['vote_count'] = $voteinfo ['vote_count'] + 1;
+		$vote->update ( $vote_id, $up );
 		
 		// 增加积分
 		add_credit ( 'vote' );
 		
-		// 连续投票
-		$next_id = M ( "vote" )->where ( 'id=' . $vote_id )->getField ( "next_id" );
-		if (! empty ( $next_id )) {
-			$vote_id = $next_id;
-		}
+		// 连续投票（投票表里没有next_id字段）
+		// $next_id = M ( "vote" )->where ( 'id=' . $vote_id )->getField ( "next_id" );
+		// if (! empty ( $next_id )) {
+		// $vote_id = $next_id;
+		// }
 		
 		redirect ( U ( 'show', 'id=' . $vote_id ) );
 	}
-	//已过期返回 true ,否则返回 false
+	// 已过期返回 true ,否则返回 false
 	private function _is_overtime($vote_id) {
 		// 先看看投票期限过期与否
-		$the_vote = M ( "vote" )->where ( "id=$vote_id" )->find ();
+		$the_vote = D ( "Vote" )->getInfo ( $vote_id );
 		
-		if(!empty($the_vote['start_date']) && $the_vote ['start_date'] > NOW_TIME) return ture;
+		if (! empty ( $the_vote ['start_date'] ) && $the_vote ['start_date'] > NOW_TIME)
+			return ture;
 		
 		$deadline = $the_vote ['end_date'] + 86400;
-		if(!empty($the_vote['end_date']) && $deadline <= NOW_TIME) return ture;
+		if (! empty ( $the_vote ['end_date'] ) && $deadline <= NOW_TIME)
+			return ture;
 		
 		return false;
 	}
 	private function _is_join($vote_id, $user_id, $token) {
 		// $vote_limit = M ( 'vote' )->where ( 'id=' . $vote_id )->getField ( 'vote_limit' );
 		$vote_limit = 1;
-		$list = M ( "vote_log" )->where ( "vote_id=$vote_id AND user_id='$user_id' AND token='$token' AND options <>''" )->select ();
+		$list = D ( 'VoteLog' )->getFollowLog ( $user_id, $vote_id );
+		
 		$count = count ( $list );
 		$info = array_pop ( $list );
 		if ($info) {
@@ -327,5 +536,11 @@ class VoteController extends AddonsController {
 			return true;
 		}
 		return false;
+	}
+	function show(){
+	    $id=I('id');
+	    $url=addons_url('Vote://Vote/index',array('id'=>$id));
+	    redirect($url);
+	    
 	}
 }

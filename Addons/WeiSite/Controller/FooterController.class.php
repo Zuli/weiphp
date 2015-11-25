@@ -85,7 +85,7 @@ class FooterController extends BaseController {
 			
 			$fields = get_model_attribute ( $this->model ['id'] );
 			if (! empty ( $extra )) {
-				foreach ( $fields [1] as &$vo ) {
+				foreach ( $fields as &$vo ) {
 					if ($vo ['name'] == 'pid') {
 						$vo ['extra'] .= "\r\n" . $extra;
 					}
@@ -130,7 +130,7 @@ class FooterController extends BaseController {
 			
 			$fields = get_model_attribute ( $this->model ['id'] );
 			if (! empty ( $extra )) {
-				foreach ( $fields [1] as &$vo ) {
+				foreach ( $fields as &$vo ) {
 					if ($vo ['name'] == 'pid') {
 						$vo ['extra'] .= "\r\n" . $extra;
 					}

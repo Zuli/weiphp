@@ -1,12 +1,13 @@
 <?php
-        	
+
 namespace Addons\Coupon\Model;
+
 use Home\Model\WeixinModel;
-        	
+
 /**
  * Coupon的微信模型
  */
-class WeixinAddonModel extends WeixinModel{
+class WeixinAddonModel extends WeixinModel {
 	function reply($dataArr, $keywordArr = array()) {
 		$map ['token'] = get_token ();
 		$keywordArr ['aim_id'] && $map ['id'] = $keywordArr ['aim_id'];
@@ -16,7 +17,7 @@ class WeixinAddonModel extends WeixinModel{
 		$param ['token'] = get_token ();
 		$param ['openid'] = get_openid ();
 		$param ['id'] = $data ['id'];
-		$url = addons_url ( 'Coupon://Coupon/prev', $param );
+		$url = addons_url ( 'Coupon://Wap/prev', $param );
 		
 		$articles [0] = array (
 				'Title' => $data ['title'],
@@ -24,7 +25,7 @@ class WeixinAddonModel extends WeixinModel{
 		);
 		
 		$now = time ();
-		if (empty($data ['end_time']) || $data ['end_time'] > $now) {
+		if (empty ( $data ['end_time'] ) || $data ['end_time'] > $now) {
 			$articles [0] ['Description'] = $data ['intro'];
 			$articles [0] ['PicUrl'] = ! empty ( $data ['cover'] ) ? get_cover_url ( $data ['cover'] ) : SITE_URL . '/Addons/Coupon/View/default/Public/cover_pic.jpg';
 		} else {
@@ -34,30 +35,29 @@ class WeixinAddonModel extends WeixinModel{
 		
 		$this->replyNews ( $articles );
 	}
-	
-	// 关注公众号事件
-	public function subscribe() {
-		return true;
+	/*
+	 * 个人中心里的链接配置参数
+	 * 只配置一个链接时 personal是一维数组 如 array ( 'url' => '','title' => '我的XX','icon' => '', 'group' => '', 'new_count' => 0);
+	 * 如果要配置多个链接是personal是二维数组 如
+	 * array(
+	 * array ( 'url' => '','title' => '我的XX','icon' => '', 'group' => '', 'new_count' => 0),
+	 * array ( 'url' => '','title' => '我的XX','icon' => '', 'group' => '', 'new_count' => 0),
+	 * array ( 'url' => '','title' => '我的XX','icon' => '', 'group' => '', 'new_count' => 0)
+	 * );
+	 */
+	function personal() {
+		$links = array (
+				'url' => addons_url ( 'Coupon://Wap/personal' ), // 链接地址
+				'title' => '我的优惠券', // 链接名称
+				'icon' => '', // 图标，选填
+				'group' => '我的互动', // 在个人中心里的分组名，选填
+				'new_count' => 0 
+		);
+		
+		// new_count 为新消息的数目，如果大于0，会在个人空间里的链接旁边显示新消息数目
+		// 下面实现获取new_count的功能
+		
+		return $links;
 	}
-	
-	// 取消关注公众号事件
-	public function unsubscribe() {
-		return true;
-	}
-	
-	// 扫描带参数二维码事件
-	public function scan() {
-		return true;
-	}
-	
-	// 上报地理位置事件
-	public function location() {
-		return true;
-	}
-	
-	// 自定义菜单事件
-	public function click() {
-		return true;
-	}	
 }
         	

@@ -406,7 +406,7 @@
 			if(this.isInline) return;
 			var zIndex = parseInt(this.element.parents().filter(function() {
 				return $(this).css('z-index') != 'auto';
-			}).first().css('z-index'))+10;
+			}).first().css('z-index'))+10000;
 			var offset, top, left;
 			if (this.component) {
 				offset = this.component.offset();
@@ -923,7 +923,6 @@
 																type: 'changeDay',
 																date: this.viewDate
 														});
-
 														if (this.viewSelect >= 2) {
 									this._setDate(UTCDate(year, month, day, hours, minutes, seconds, 0));
 														}

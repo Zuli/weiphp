@@ -12,10 +12,13 @@ if(version_compare(PHP_VERSION,'5.3.0','<'))  die('Your PHP Version is '.PHP_VER
 $_GET['m'] = 'Install';
 
 /**
- * 系统调试设置
- * 项目正式部署后请设置为false
+ * 此处APP_DEBUG一定要设置为true，否则安装后会生成错误的缓存文件
  */
 define ( 'APP_DEBUG', true );
+define ( 'BIND_MODULE','Install');
+
+// 网站根路径设置
+define ( 'SITE_PATH', dirname ( __FILE__ ) );
 
 /**
  * 应用目录设置

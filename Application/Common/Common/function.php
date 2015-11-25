@@ -8,9 +8,9 @@
 // +----------------------------------------------------------------------
 
 // OneThink常量定义
-const ONETHINK_VERSION = '1.0.131218';
-const ONETHINK_ADDON_PATH = './Addons/';
-
+// const ONETHINK_VERSION = '1.1.141101';
+const ONETHINK_ADDON_PATH = './Addons/'; // 微信插件
+const ONETHINK_PLUGIN_PATH = './Plugins/'; // 系统插件
 /**
  * 系统公共库文件
  * 主要定义系统公共函数库
@@ -102,7 +102,8 @@ function msubstr($str, $start = 0, $length, $charset = "utf-8", $suffix = true) 
 		preg_match_all ( $re [$charset], $str, $match );
 		$slice = join ( "", array_slice ( $match [0], $start, $length ) );
 	}
-	return $suffix ? $slice . '...' : $slice;
+	
+	return $suffix && $str != $slice ? $slice . '...' : $slice;
 }
 /**
  * 方法增强，根据$length自动判断是否应该显示...
@@ -155,6 +156,7 @@ function msubstr_local($str, $start = 0, $length, $charset = "utf-8") {
  */
 function think_encrypt($data, $key = '', $expire = 0) {
 	$key = md5 ( empty ( $key ) ? C ( 'DATA_AUTH_KEY' ) : $key );
+	
 	$data = base64_encode ( $data );
 	$x = 0;
 	$len = strlen ( $data );
@@ -358,7 +360,38 @@ function tree_to_list($tree, $child = '_child', $order = 'id', &$list = array())
 	}
 	return $list;
 }
-
+/**
+ * 树形列表
+ *
+ * @param array $list
+ *        	数据库原始数据
+ * @param array $res_list
+ *        	返回的结果数组
+ * @param int $pid
+ *        	上级ID
+ * @param int $level
+ *        	当前处理的层级
+ */
+function list_tree($list, &$res_list, $pid = 0, $level = 0) {
+	foreach ( $list as $k => $v ) {
+		if (intval ( $v ['pid'] ) != $pid)
+			continue;
+		
+		if ($level > 0) {
+			$space = '';
+			for($i = 1; $i < $level; $i ++) {
+				$space .= '──';
+			}
+			$v ['title'] = '├──' . $space . $v ['title'];
+		}
+		
+		$v ['level'] = $level;
+		$res_list [] = $v;
+		unset ( $list [$k] );
+		
+		list_tree ( $list, $res_list, $v ['id'], $level + 1 );
+	}
+}
 /**
  * 格式化字节大小
  *
@@ -425,6 +458,9 @@ function hook($hook, $params = array()) {
  */
 function get_addon_class($name) {
 	$class = "Addons\\{$name}\\{$name}Addon";
+	if (! class_exists ( $class )) {
+		$class = "Plugins\\{$name}\\{$name}Addon";
+	}
 	return $class;
 }
 
@@ -481,9 +517,9 @@ function addons_url($url, $param = array()) {
 	);
 	$params = array_merge ( $params, $param ); // 添加额外参数
 	
-	return U ( 'Home/Addons/execute', $params );
-	// $qurl = $addons == $controller ? "/ad/$addons/$action" : "/ad/$addons/$controller/$action";
-	// return U ($qurl , $param );
+	$qurl = is_dir ( ONETHINK_PLUGIN_PATH . $params ['_addons'] ) ? "Home/Addons/plugin" : "Home/Addons/execute";
+	
+	return U ( $qurl, $params );
 }
 
 /**
@@ -506,6 +542,24 @@ function day_format($time = NULL) {
 function hour_format($time = NULL) {
 	return time_format ( $time, 'H:i' );
 }
+function time_offset($time = NULL) {
+	if (empty ( $time ))
+		return '00:00';
+	
+	$mod = $time % 60;
+	$min = ($time - $mod) / 60;
+	
+	$mod < 10 && $mod = '0' . $mod;
+	$min < 10 && $min = '0' . $min;
+	
+	return $min . ':' . $mod;
+}
+// 获取用户信息
+function getUserInfo($uid, $field = '') {
+	$info = D ( 'Common/User' )->getUserInfo ( $uid );
+	// dump ( $info );
+	return empty ( $field ) ? $info : $info [$field];
+}
 /**
  * 根据用户ID获取用户名
  *
@@ -514,66 +568,31 @@ function hour_format($time = NULL) {
  * @return string 用户名
  */
 function get_username($uid = 0) {
-	static $list;
-	if (! ($uid && is_numeric ( $uid ))) { // 获取当前登录用户名
-		return session ( 'user_auth.username' );
-	}
-	
-	/* 获取缓存数据 */
-	if (empty ( $list )) {
-		$list = S ( 'sys_active_user_list' );
-	}
-	
-	/* 查找用户信息 */
-	$key = "u{$uid}";
-	if (isset ( $list [$key] )) { // 已缓存，直接使用
-		$name = $list [$key];
-	} else { // 调用接口获取用户信息
-		$User = new User\Api\UserApi ();
-		$info = $User->info ( $uid );
-		if ($info && isset ( $info [1] )) {
-			$name = $list [$key] = $info [1];
-			/* 缓存用户 */
-			$count = count ( $list );
-			$max = C ( 'USER_MAX_CACHE' );
-			while ( $count -- > $max ) {
-				array_shift ( $list );
-			}
-			S ( 'sys_active_user_list', $list );
-		} else {
-			$name = '';
-		}
-	}
-	return $name;
+	return get_nickname ( $uid );
 }
-
+function get_userface($uid = 0) {
+	return getUserInfo ( $uid, $field = 'headimgurl' );
+}
 /**
- * 根据用户ID获取用户昵称
- *
- * @param integer $uid
- *        	用户ID
- * @return string 用户昵称
+ * 以下几个获取用户信息都是兼容旧系统的写法
  */
 function get_nickname($uid = 0) {
-	$info = get_mult_userinfo ( $uid );
-	return $info ['nickname'];
+	if (empty ( $uid ))
+		return '';
+	
+	return getUserInfo ( $uid, $field = 'nickname' );
 }
 function get_truename($uid) {
-	$info = D ( 'Home/Member' )->getMemberInfo ( $uid );
-	return $info ['truename'];
+	return getUserInfo ( $uid, $field = 'truename' );
 }
-function get_memberinfo($uid) {
-	return D ( 'Home/Member' )->getMemberInfo ( $uid );
+function get_userinfo($uid, $field = '') {
+	return getUserInfo ( $uid, $field );
 }
-function get_followinfo($id) {
-	return D ( 'Common/Follow' )->getFollowInfo ( $id );
+function get_followinfo($id, $field = '') {
+	return getUserInfo ( $id, $field );
 }
 function get_mult_userinfo($uid) {
-	$info = get_followinfo ( $uid );
-	if (! $info) {
-		$info = get_memberinfo ( $uid );
-	}
-	return $info;
+	return getUserInfo ( $uid );
 }
 function get_mult_username($uids) {
 	is_array ( $uids ) || $uids = explode ( ',', $uids );
@@ -592,6 +611,7 @@ function get_mult_username($uids) {
 	
 	return implode ( ', ', $nameArr );
 }
+
 /**
  * 获取分类信息并缓存分类
  *
@@ -640,66 +660,18 @@ function get_category_title($id) {
  * 获取顶级模型信息
  */
 function get_top_model($model_id = null) {
-	$map = array (
-			'status' => 1,
-			'extend' => 0 
-	);
+	$map ['status'] = 1;
 	if (! is_null ( $model_id )) {
 		$map ['id'] = array (
 				'neq',
 				$model_id 
 		);
 	}
-	$model = M ( 'Model' )->where ( $map )->field ( true )->select ();
+	$model = M ( 'model' )->where ( $map )->field ( true )->select ();
 	foreach ( $model as $value ) {
 		$list [$value ['id']] = $value;
 	}
 	return $list;
-}
-
-/**
- * 获取文档模型信息
- *
- * @param integer $id
- *        	模型ID
- * @param string $field
- *        	模型字段
- * @return array
- */
-function get_document_model($id = null, $field = null) {
-	static $list;
-	
-	/* 非法分类ID */
-	if (! (is_numeric ( $id ) || is_null ( $id ))) {
-		return '';
-	}
-	
-	/* 读取缓存数据 */
-	if (empty ( $list )) {
-		$list = S ( 'DOCUMENT_MODEL_LIST' );
-	}
-	
-	/* 获取模型名称 */
-	if (empty ( $list )) {
-		$map = array (
-				'status' => 1,
-				'extend' => 1 
-		);
-		$model = M ( 'Model' )->where ( $map )->field ( true )->select ();
-		foreach ( $model as $value ) {
-			$list [$value ['id']] = $value;
-		}
-		S ( 'DOCUMENT_MODEL_LIST', $list ); // 更新缓存
-	}
-	
-	/* 根据条件返回数据 */
-	if (is_null ( $id )) {
-		return $list;
-	} elseif (is_null ( $field )) {
-		return $list [$id];
-	} else {
-		return $list [$id] [$field];
-	}
 }
 
 /**
@@ -953,14 +925,9 @@ function get_table_name($model_id = null) {
 	if (empty ( $model_id )) {
 		return false;
 	}
-	$Model = M ( 'Model' );
-	$name = '';
+	$Model = M ( 'model' );
 	$info = $Model->getById ( $model_id );
-	if ($info ['extend'] != 0) {
-		$name = $Model->getFieldById ( $info ['extend'], 'name' ) . '_';
-	}
-	$name .= $info ['name'];
-	return $name;
+	return $info ['name'];
 }
 
 /**
@@ -972,7 +939,7 @@ function get_table_name($model_id = null) {
  *        	要获取的字段名
  * @return string 属性信息
  */
-function get_model_attribute($model_id, $group = true) {
+function get_model_attribute($model_id, $field_sort = false) {
 	static $list;
 	
 	/* 非法ID */
@@ -982,59 +949,30 @@ function get_model_attribute($model_id, $group = true) {
 	
 	/* 获取属性 */
 	if (! isset ( $list [$model_id] )) {
-		$map = array (
-				'model_id' => $model_id 
-		);
-		$extend = M ( 'Model' )->getFieldById ( $model_id, 'extend' );
+		$map ['model_id'] = $map2 ['id'] = $model_id;
 		
-		if ($extend) {
-			$map = array (
-					'model_id' => array (
-							"in",
-							array (
-									$model_id,
-									$extend 
-							) 
-					) 
-			);
+		$alist = M ( 'attribute' )->where ( $map )->order ( 'id asc' )->select ();
+		foreach ( $alist as $vo ) {
+			$res [$vo ['name']] = $vo;
 		}
-		$info = M ( 'Attribute' )->where ( $map )->select ();
-		$list [$model_id] = $info;
-	}
-	
-	$attr = array ();
-	foreach ( $list [$model_id] as $value ) {
-		$attr [$value ['name']] = $value;
-	}
-	
-	if ($group) {
-		$sort = M ( 'Model' )->getFieldById ( $model_id, 'field_sort' );
+		unset ( $alist );
 		
-		if (empty ( $sort )) { // 未排序
-			$group = array (
-					1 => array_merge ( $attr ) 
-			);
-		} else {
-			$group = json_decode ( $sort, true );
-			
-			$keys = array_keys ( $group );
-			foreach ( $group as $k => $value ) {
-				foreach ( $value as $key => $val ) {
-					unset ( $value [$key] );
-					$value [$val] = $attr [$val];
-					unset ( $attr [$val] );
-				}
-				$group [$k] = $value;
+		$field_sort === false && $field_sort = M ( 'model' )->where ( $map2 )->getField ( 'field_sort' );
+		if ($field_sort) {
+			$field_sort = json_decode ( $field_sort, true );
+			$sort = array ();
+			foreach ( $field_sort as $s ) {
+				$sort [$s] = $res [$s];
+				unset ( $res [$s] );
 			}
 			
-			if (! empty ( $attr )) {
-				$group [$keys [0]] = array_merge ( $group [$keys [0]], $attr );
-			}
+			$res = array_merge ( $sort, $res );
 		}
-		$attr = $group;
+		
+		$list [$model_id] = $res;
 	}
 	
-	return $attr;
+	return ( array ) $list [$model_id];
 }
 
 /**
@@ -1089,27 +1027,6 @@ function get_table_field($value = null, $condition = 'id', $field = null, $table
 }
 
 /**
- * 获取链接信息
- *
- * @param int $link_id        	
- * @param string $field        	
- * @return 完整的链接信息或者某一字段
- * @author huajie <banhuajie@163.com>
- */
-function get_link($link_id = null, $field = 'url') {
-	$link = '';
-	if (empty ( $link_id )) {
-		return $link;
-	}
-	$link = M ( 'Url' )->getById ( $link_id );
-	if (empty ( $field )) {
-		return $link;
-	} else {
-		return $link [$field];
-	}
-}
-
-/**
  * 获取文档封面图片
  *
  * @param int $cover_id        	
@@ -1121,20 +1038,37 @@ function get_cover($cover_id, $field = null) {
 	if (empty ( $cover_id ))
 		return false;
 	
-	$map ['status'] = 1;
-	$picture = M ( 'Picture' )->where ( $map )->getById ( $cover_id );
+	$key = 'Picture_' . $cover_id;
+	$picture = S ( $key );
+	
+	if (! $picture) {
+		$map ['status'] = 1;
+		$picture = M ( 'Picture' )->where ( $map )->getById ( $cover_id );
+		S ( $key, $picture, 86400 );
+	}
 	
 	if (empty ( $picture ))
 		return '';
 	
 	return empty ( $field ) ? $picture : $picture [$field];
 }
-function get_cover_url($cover_id) {
-	$url = get_cover ( $cover_id, 'path' );
+function get_cover_url($cover_id, $width = '', $height = '') {
+	$info = get_cover ( $cover_id );
+	
+	if ($width > 0 && $height > 0) {
+		$thumb = "?imageMogr2/thumbnail/{$width}x{$height}";
+	} elseif ($width > 0) {
+		$thumb = "?imageMogr2/thumbnail/{$width}x";
+	} elseif ($height > 0) {
+		$thumb = "?imageMogr2/thumbnail/x{$height}";
+	}
+	if ($info ['url'])
+		return $info ['url'] . $thumb;
+	
+	$url = $info ['path'];
 	if (empty ( $url ))
 		return '';
-	
-	return SITE_URL . $url;
+	return SITE_URL . $url . $thumb;
 }
 // 兼容旧方法
 function get_picture_url($cover_id) {
@@ -1143,10 +1077,42 @@ function get_picture_url($cover_id) {
 function get_img_html($cover_id) {
 	$url = get_cover_url ( $cover_id );
 	
+	return url_img_html ( $url );
+}
+function url_img_html($url) {
 	if (empty ( $url ))
 		return '';
 	
 	return '<img class="list_img" src="' . $url . '" >';
+}
+/* 根据id获取fiel路径 */
+function get_file_url($id) {
+	if (empty ( $id ))
+		return false;
+	
+	$key = 'File_' . $id;
+	$file = S ( $key );
+	
+	if (! $file) {
+		$file = M ( 'File' )->where ( array (
+				'id' => $id 
+		) )->find ();
+		S ( $key, $file, 86400 );
+	}
+	
+	if (empty ( $file ))
+		return '';
+	
+	$info = $file;
+	
+	if ($info ['url'])
+		return $info ['url'];
+	
+	$url = $info ['savepath'];
+	if (empty ( $url ))
+		return '';
+	
+	return SITE_URL . '/Uploads/Download/' . $info ['savepath'] . $info ['savename'];
 }
 /**
  * 检查$pos(推荐位的值)是否包含指定推荐位$contain
@@ -1225,7 +1191,7 @@ function keyword_unique($keyword) {
 // 分析枚举类型配置值 格式 a:名称1,b:名称2
 // weiphp 该函数是从admin的function的文件里提取这到里
 function parse_config_attr($string) {
-	$array = preg_split ( '/[;\r\n]+/', trim ( $string, ",;\r\n" ) );
+	$array = preg_split ( '/[\s;\r\n]+/', trim ( $string, ",;\s\r\n" ) );
 	if (strpos ( $string, ':' )) {
 		$value = array ();
 		foreach ( $array as $val ) {
@@ -1257,7 +1223,7 @@ function parse_field_attr($string) {
 		// 采用函数定义
 		return eval ( substr ( $string, 1 ) . ';' );
 	}
-	$array = preg_split ( '/[;\r\n]+/', trim ( $string, ",;\r\n" ) );
+	$array = preg_split ( '/[\s;\r\n]+/', trim ( $string, ",;\r\n" ) );
 	// dump($array);
 	if (strpos ( $string, ':' )) {
 		$value = array ();
@@ -1276,26 +1242,18 @@ function parse_field_attr($string) {
 /* 解析列表定义规则 */
 function get_list_field($data, $grid, $model) {
 	// 获取当前字段数据
-	foreach ( $grid ['field'] as $field ) {
-		$array = explode ( '|', $field );
-		$array [0] = trim ( $array [0] );
-		$temp = $data [$array [0]];
-		// 函数支持
-		if (isset ( $array [1] )) {
-			if ($array [1] == 'get_name_by_status') {
-				$temp = get_name_by_status ( $temp, $array [0], $model ['id'] );
-			} else {
-				$temp = call_user_func ( $array [1], $temp );
-			}
+	$field = $grid ['field'];
+	$array = explode ( '|', $field );
+	$field_name = trim ( $array [0] );
+	$value = $data [$field_name];
+	
+	// 函数支持
+	if (isset ( $array [1] )) {
+		if ($array [1] == 'get_name_by_status') {
+			$value = get_name_by_status ( $value, $field_name, $model ['id'] );
+		} else {
+			$value = call_user_func ( $array [1], $value );
 		}
-		$data2 [$array [0]] = $temp;
-	}
-	if (! empty ( $grid ['format'] )) {
-		$value = preg_replace_callback ( '/\[([a-z_]+)\]/', function ($match) use($data2) {
-			return $data2 [$match [1]];
-		}, $grid ['format'] );
-	} else {
-		$value = implode ( ' ', $data2 );
 	}
 	
 	// 链接支持
@@ -1304,42 +1262,42 @@ function get_list_field($data, $grid, $model) {
 		foreach ( $links as $link ) {
 			$array = explode ( '|', $link );
 			$href = $array [0];
-			if (preg_match ( '/^\[([a-z_]+)\]$/', $href, $matches )) {
-				$val [] = $data2 [$matches [1]];
+			
+			$show = isset ( $array [1] ) ? $array [1] : $value;
+			// 增加跳转方式处理 weiphp
+			$target = '_self';
+			if (preg_match ( '/target=(\w+)/', $href, $matches )) {
+				$target = $matches [1];
+				$href = str_replace ( '&' . $matches [0], '', $href );
+			}
+			
+			// 替换系统特殊字符串
+			$href = str_replace ( array (
+					'[DELETE]',
+					'[EDIT]',
+					'[MODEL]' 
+			), array (
+					'del?id=[id]&model=[MODEL]',
+					'edit?id=[id]&model=[MODEL]',
+					$model ['id'] 
+			), $href );
+			
+			// 替换数据变量
+			$href = preg_replace_callback ( '/\[([a-z_]+)\]/', function ($match) use($data) {
+				return $data [$match [1]];
+			}, $href );
+			
+			// 兼容多种写法
+			if (strpos ( $href, '?' ) === false && strpos ( $href, '&' ) !== false) {
+				$href = preg_replace ( "/&/i", "?", $href, 1 );
+			}
+			if ($show == '删除') {
+				$val [] = '<a class="confirm"   href="' . urldecode ( U ( $href, $GLOBALS ['get_param'] ) ) . '">' . $show . '</a>';
+			} else if ($show == '复制链接') {
+				$publicid = get_token_appinfo ( '', 'id' );
+				$val [] = '<a class="list_copy_link" id="copyLink_' . $data ['id'] . '"   data-clipboard-text="' . urldecode ( U ( $href, $GLOBALS ['get_param'] ) ) . '&publicid=' . $publicid . '">' . $show . '</a>';
 			} else {
-				$show = isset ( $array [1] ) ? $array [1] : $value;
-				// 增加跳转方式处理 weiphp
-				$target = '_self';
-				if (preg_match ( '/target=(\w+)/', $href, $matches )) {
-					$target = $matches [1];
-					$href = str_replace ( '&' . $matches [0], '', $href );
-				}
-				
-				// 替换系统特殊字符串
-				$href = str_replace ( array (
-						'[DELETE]',
-						'[EDIT]',
-						'[MODEL]' 
-				), array (
-						'del?id=[id]&model=[MODEL]',
-						'edit?id=[id]&model=[MODEL]',
-						$model ['id'] 
-				), $href );
-				
-				// 替换数据变量
-				$href = preg_replace_callback ( '/\[([a-z_]+)\]/', function ($match) use($data) {
-					return $data [$match [1]];
-				}, $href );
-				
-				// 兼容多种写法
-				if (strpos ( $href, '?' ) === false && strpos ( $href, '&' ) !== false) {
-					$href = preg_replace ( "/&/i", "?", $href, 1 );
-				}
-				if ($show == '删除') {
-					$val [] = '<a class="confirm"   href="' . urldecode ( U ( $href, $GLOBALS ['get_param'] ) ) . '">' . $show . '</a>';
-				} else {
-					$val [] = '<a  target="' . $target . '" href="' . urldecode ( U ( $href, $GLOBALS ['get_param'] ) ) . '">' . $show . '</a>';
-				}
+				$val [] = '<a  target="' . $target . '" href="' . urldecode ( U ( $href, $GLOBALS ['get_param'] ) ) . '">' . $show . '</a>';
 			}
 		}
 		$value = implode ( ' ', $val );
@@ -1384,12 +1342,23 @@ function get_name_by_status($val, $name, $model_id) {
 		return empty ( $_name [$model_id] [$name] ['value'] [$val] ) ? $val : $_name [$model_id] [$name] ['value'] [$val];
 	}
 }
-function addWeixinLog($data, $data_post = '') {
+function addWeixinLog($data, $data_post = '', $wechat = false) {
 	$log ['cTime'] = time ();
 	$log ['cTime_format'] = date ( 'Y-m-d H:i:s', $log ['cTime'] );
 	$log ['data'] = is_array ( $data ) ? serialize ( $data ) : $data;
 	$log ['data_post'] = is_array ( $data_post ) ? serialize ( $data_post ) : $data_post;
 	M ( 'weixin_log' )->add ( $log );
+	
+	// 通过微信客服接口直接回复调试信息
+	if ($wechat && C ( 'SEND_CUSTOM_MSG' )) {
+		$url = 'https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token=' . get_access_token ();
+		
+		$param ['touser'] = get_openid ();
+		$param ['msgtype'] = 'text';
+		$param ['text'] ['content'] = 'data: ' . $log ['data'] . '<br/> data_post: ' . $log ['data_post'];
+		
+		post_data ( $url, $param );
+	}
 }
 /**
  * 取一个二维数组中的每个数组的固定的键知道的值来形成一个新的一维数组
@@ -1415,7 +1384,10 @@ function getSubByKey($pArray, $pKey = "", $pCondition = "") {
 	}
 }
 // 判断是否是在微信浏览器里
-function isWeixinBrowser() {
+function isWeixinBrowser($from = 0) {
+	if ((! $from && defined ( 'IN_WEIXIN' ) && IN_WEIXIN) || isset ( $_GET ['is_stree'] ))
+		return true;
+	
 	$agent = $_SERVER ['HTTP_USER_AGENT'];
 	if (! strpos ( $agent, "icroMessenger" )) {
 		return false;
@@ -1442,36 +1414,107 @@ function GetCurUrl() {
 // 获取当前用户的OpenId
 function get_openid($openid = NULL) {
 	$token = get_token ();
-	if ($openid !== NULL) {
+	if ($openid !== NULL && $openid != '-1') {
 		session ( 'openid_' . $token, $openid );
-	} elseif (! empty ( $_REQUEST ['openid'] )) {
+	} elseif (! empty ( $_REQUEST ['openid'] ) && $_REQUEST ['openid'] != '-1' && $_REQUEST ['openid'] != '-2') {
 		session ( 'openid_' . $token, $_REQUEST ['openid'] );
 	}
 	$openid = session ( 'openid_' . $token );
-	
 	$isWeixinBrowser = isWeixinBrowser ();
-	if (empty ( $openid ) && $isWeixinBrowser) {
+	if ((empty ( $openid ) || $openid == '-1') && $isWeixinBrowser && $_REQUEST ['openid'] != '-2' && IS_GET && ! IS_AJAX) {
 		$callback = GetCurUrl ();
-		OAuthWeixin ( $callback );
+		OAuthWeixin ( $callback, $token );
 	}
-	
 	if (empty ( $openid )) {
-		return - 1;
+		return '-1';
+		// exit ( 'openid获取失败error' );
 	}
-	
 	return $openid;
+}
+// 通过UID获取openid
+function getOpenidByUid($uid, $token = '') {
+	empty ( $token ) && $token = get_token ();
+	
+	$map ['uid'] = $uid;
+	$map ['token'] = $token;
+	return M ( 'public_follow' )->where ( $map )->getField ( 'openid' );
+}
+/*
+ * 获取支付的appid的openid
+ * 微信支付和红包使用
+ */
+function getPaymentOpenid($appId = "", $serect = "") { // echo '444';
+	if (empty ( $appId ) || empty ( $serect )) {
+		get_openid ();
+		exit ();
+	}
+	$callback = GetCurUrl ();
+	if ((defined ( 'IN_WEIXIN' ) && IN_WEIXIN) || isset ( $_GET ['is_stree'] ))
+		return false;
+	
+	$callback = urldecode ( $callback );
+	$isWeixinBrowser = isWeixinBrowser ();
+	
+	if (strpos ( $callback, '?' ) === false) {
+		$callback .= '?';
+	} else {
+		$callback .= '&';
+	}
+	$param ['appid'] = $appId;
+	
+	if (! isset ( $_GET ['getOpenId'] )) {
+		$param ['redirect_uri'] = $callback . 'getOpenId=1';
+		$param ['response_type'] = 'code';
+		$param ['scope'] = 'snsapi_base';
+		$param ['state'] = 123;
+		
+		$url = 'https://open.weixin.qq.com/connect/oauth2/authorize?' . http_build_query ( $param ) . '#wechat_redirect';
+		redirect ( $url );
+	} else if ($_GET ['state']) {
+		$param ['secret'] = $serect;
+		$param ['code'] = I ( 'code' );
+		$param ['grant_type'] = 'authorization_code';
+		
+		$url = 'https://api.weixin.qq.com/sns/oauth2/access_token?' . http_build_query ( $param );
+		$content = file_get_contents ( $url );
+		$content = json_decode ( $content, true );
+		return $content ['openid'];
+	}
 }
 // 获取当前用户的Token
 function get_token($token = NULL) {
-	if ($token !== NULL) {
+	$stoken = session ( 'token' );
+	$domain = explode ( '.', SITE_DOMAIN );
+	
+	if ($token !== NULL && $token != '-1') {
 		session ( 'token', $token );
-	} elseif (! empty ( $_REQUEST ['token'] )) {
+	} elseif (empty ( $stoken ) && C ( 'DIV_DOMAIN' ) && ! is_numeric ( $domain [0] ) && SITE_DOMAIN != 'localhost') { // 泛域名支持
+		$domain = explode ( '.', SITE_DOMAIN );
+		$map ['domain'] = $domain [0];
+		! $GLOBALS ['is_wap'] && $GLOBALS ['mid'] && $map ['uid'] = $GLOBALS ['uid'];
+		$token = D ( 'Common/Public' )->where ( $map )->getField ( 'token' );
+		$token && session ( 'token', $token );
+	} elseif (! empty ( $_REQUEST ['token'] ) && $_REQUEST ['token'] != '-1') {
 		session ( 'token', $_REQUEST ['token'] );
+	} elseif (! empty ( $_REQUEST ['publicid'] )) {
+		$publicid = I ( 'publicid' );
+		$token = D ( 'Common/Public' )->getInfo ( $publicid, 'token' );
+		$token && session ( 'token', $token );
 	}
 	$token = session ( 'token' );
 	
-	if (empty ( $token )) {
-		return - 1;
+	if (empty ( $token ) || $token == '-1') {
+		// $map ['uid'] = session ( 'mid' );
+		// if ($map ['uid'] > 0) {
+		// $user = get_userinfo ( $map ['uid'] );
+		
+		// $user ['level'] < 2 && $user ['manager_id'] > 0 && $map ['uid'] = $user ['manager_id'];
+		// $token = $user ['level'] < 2 || $user ['has_public'] ? D ( 'Common/Public' )->where ( $map )->getField ( 'token' ) : DEFAULT_TOKEN;
+		
+		// isset ( $user ['has_public'] ) && $token && session ( 'token', $token );
+		// } else {
+		$token = DEFAULT_TOKEN;
+		// }
 	}
 	
 	return $token;
@@ -1481,10 +1524,13 @@ function get_mid() {
 	return session ( 'mid' );
 }
 // 通过openid获取微信用户基本信息,此功能只有认证的服务号才能用
-function getWeixinUserInfo($openid, $token) {
-	$access_token = get_access_token ( $token );
+function getWeixinUserInfo($openid) {
+	if (! C ( 'USER_BASE_INFO' )) {
+		return array ();
+	}
+	$access_token = get_access_token ();
 	if (empty ( $access_token )) {
-		return false;
+		return array ();
 	}
 	
 	$param2 ['access_token'] = $access_token;
@@ -1497,11 +1543,16 @@ function getWeixinUserInfo($openid, $token) {
 	return $content;
 }
 // 获取公众号的信息
-function get_token_appinfo($token = '') {
+function get_token_appinfo($token = '', $field = '') {
 	empty ( $token ) && $token = get_token ();
-	$map ['token'] = $token;
-	$info = M ( 'member_public' )->where ( $map )->find ();
+	if ($token != 'gh_3c884a361561') {
+		$info = D ( 'Common/Public' )->getInfoByToken ( $token, $field );
+	}
 	return $info;
+}
+// 兼容旧方法
+function get_service_info($field = '') {
+	return get_token_appinfo ( '', $field );
 }
 // 判断公众号的类型：是订阅号还是服务号
 function get_token_type($token = '') {
@@ -1511,50 +1562,91 @@ function get_token_type($token = '') {
 // 获取access_token，自动带缓存功能
 function get_access_token($token = '') {
 	empty ( $token ) && $token = get_token ();
-	$key = 'access_token_' . $token;
+	
+	$info = get_token_appinfo ( $token );
+	
+	// 微信开放平台一键绑定
+	if ($token == 'gh_3c884a361561' || (C ( 'PUBLIC_BIND' ) && $info ['is_bind'])) {
+		$dao = D ( 'Addons://PublicBind/PublicBind' );
+		$auth_code = $dao->_get_pre_auth_code ();
+		$info = $dao->getAuthInfo ( $auth_code );
+		return $info ['authorization_info'] ['authorizer_access_token'];
+	}
+	
+	return get_access_token_by_apppid ( $info ['appid'], $info ['secret'] );
+}
+// 获取access_token，自动带缓存功能
+function get_tv_access_token($uid = '') {
+	empty ( $uid ) && $uid = session ( 'mid' );
+	
+	$info = get_userinfo ( $uid );
+	return get_access_token_by_apppid ( $info ['GammaAppId'], $info ['GammaSecret'] );
+}
+function get_access_token_by_apppid($appid, $secret) {
+	if (empty ( $appid ) || empty ( $secret )) {
+		return 0;
+	}
+	
+	$key = 'access_token_apppid_' . $appid . '_' . $secret;
 	$res = S ( $key );
 	if ($res !== false)
 		return $res;
 	
-	$info = get_token_appinfo ( $token );
-	if (empty ( $info ['appid'] ) || empty ( $info ['secret'] )) {
-		S ( $key, 0, 7200 );
-		return 0;
-	}
-	
-	$url = 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=' . $info ['appid'] . '&secret=' . $info ['secret'];
+	$url = 'https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=' . $appid . '&secret=' . $secret;
 	$tempArr = json_decode ( file_get_contents ( $url ), true );
 	if (@array_key_exists ( 'access_token', $tempArr )) {
-		S ( $key, $tempArr ['access_token'], 7200 );
+		S ( $key, $tempArr ['access_token'], $tempArr ['expires_in'] );
 		return $tempArr ['access_token'];
 	} else {
 		return 0;
 	}
 }
-function OAuthWeixin($callback) {
+function OAuthWeixin($callback, $token = '') {
+	if ((defined ( 'IN_WEIXIN' ) && IN_WEIXIN) || isset ( $_GET ['is_stree'] ))
+		return false;
+	
+	$callback = urldecode ( $callback );
 	$isWeixinBrowser = isWeixinBrowser ();
-	$info = get_token_appinfo ();
-	if (! $isWeixinBrowser || $info ['type'] != 2 || empty ( $info ['appid'] )) {
-		redirect ( $callback . '&openid=-1' );
+	$info = get_token_appinfo ( $token );
+	
+	if (strpos ( $callback, '?' ) === false) {
+		$callback .= '?';
+	} else {
+		$callback .= '&';
+	}
+	
+	if (! $isWeixinBrowser || ! C ( 'USER_OAUTH' ) || empty ( $info ['appid'] )) {
+		redirect ( $callback . 'openid=-2' );
 	}
 	$param ['appid'] = $info ['appid'];
 	
 	if (! isset ( $_GET ['getOpenId'] )) {
-		$param ['redirect_uri'] = $callback . '&getOpenId=1';
+		$param ['redirect_uri'] = $callback . 'getOpenId=1';
 		$param ['response_type'] = 'code';
 		$param ['scope'] = 'snsapi_base';
 		$param ['state'] = 123;
+		$info ['is_bind'] && $param ['component_appid'] = C ( 'COMPONENT_APPID' );
 		$url = 'https://open.weixin.qq.com/connect/oauth2/authorize?' . http_build_query ( $param ) . '#wechat_redirect';
 		redirect ( $url );
 	} elseif ($_GET ['state']) {
-		$param ['secret'] = $info ['secret'];
 		$param ['code'] = I ( 'code' );
 		$param ['grant_type'] = 'authorization_code';
 		
-		$url = 'https://api.weixin.qq.com/sns/oauth2/access_token?' . http_build_query ( $param );
+		if ($info ['is_bind']) {
+			$param ['appid'] = I ( 'appid' );
+			$param ['component_appid'] = C ( 'COMPONENT_APPID' );
+			$param ['component_access_token'] = D ( 'Addons://PublicBind/PublicBind' )->_get_component_access_token ();
+			
+			$url = 'https://api.weixin.qq.com/sns/oauth2/component/access_token?' . http_build_query ( $param );
+		} else {
+			$param ['secret'] = $info ['secret'];
+			
+			$url = 'https://api.weixin.qq.com/sns/oauth2/access_token?' . http_build_query ( $param );
+		}
+		
 		$content = file_get_contents ( $url );
 		$content = json_decode ( $content, true );
-		redirect ( $callback . '&openid=' . $content ['openid'] );
+		redirect ( $callback . 'openid=' . $content ['openid'] );
 	}
 }
 /**
@@ -1598,7 +1690,7 @@ function get_public_group_name($group_id) {
 	
 	$group_id = intval ( $group_id );
 	if (! isset ( $_public_group_name [$group_id] )) {
-		$group_list = M ( 'member_public_group' )->field ( 'id, title' )->select ();
+		$group_list = M ( 'public_group' )->field ( 'id, title' )->select ();
 		foreach ( $group_list as $g ) {
 			$_public_group_name [$g ['id']] = $g ['title'];
 		}
@@ -1642,9 +1734,7 @@ function wp_file_get_contents($url) {
 			'http' => array (
 					'timeout' => 30 
 			) 
-	) ) // 超时时间，单位为秒
-
-	;
+	) ); // 超时时间，单位为秒
 	
 	return file_get_contents ( $url, 0, $context );
 }
@@ -1660,7 +1750,7 @@ function safe($text, $type = 'html') {
 	// 只存在字体样式
 	$font_tags = '<i><b><u><s><em><strong><font><big><small><sup><sub><bdo><h1><h2><h3><h4><h5><h6>';
 	// 标题摘要基本格式
-	$base_tags = $font_tags . '<p><br><hr><a><img><map><area><pre><code><q><blockquote><acronym><cite><ins><del><center><strike>';
+	$base_tags = $font_tags . '<p><br><hr><a><img><map><area><pre><code><q><blockquote><acronym><cite><ins><del><center><strike><section><header><footer><article><nav><audio><video>';
 	// 兼容Form格式
 	$form_tags = $base_tags . '<form><input><textarea><button><select><optgroup><option><label><fieldset><legend>';
 	// 内容等允许HTML的格式
@@ -1674,7 +1764,7 @@ function safe($text, $type = 'html') {
 	// 过滤攻击代码
 	if ($type != 'all') {
 		// 过滤危险的属性，如：过滤on事件lang js
-		while ( preg_match ( '/(<[^><]+)(ondblclick|onclick|onload|onerror|unload|onmouseover|onmouseup|onmouseout|onmousedown|onkeydown|onkeypress|onkeyup|onblur|onchange|onfocus|background|codebase|dynsrc|lowsrc)([^><]*)/i', $text, $mat ) ) {
+		while ( preg_match ( '/(<[^><]+)(ondblclick|onclick|onload|onerror|unload|onmouseover|onmouseup|onmouseout|onmousedown|onkeydown|onkeypress|onkeyup|onblur|onchange|onfocus|codebase|dynsrc|lowsrc)([^><]*)/i', $text, $mat ) ) {
 			$text = str_ireplace ( $mat [0], $mat [1] . $mat [3], $text );
 		}
 		while ( preg_match ( '/(<[^><]+)(window\.|javascript:|js:|about:|file:|document\.|vbs:|cookie)([^><]*)/i', $text, $mat ) ) {
@@ -1796,7 +1886,7 @@ function StringToArray($str) {
  * @param int $lock_time
  *        	解锁时间，即多长时间内才能重复加积分，为0时不作控制
  * @param array $credit
- *        	自定义积分值，格式：array('score'=>财富值,'experience'=>经验值);为空时默认取管理中心积分管理里的配置值
+ *        	自定义金币值，格式：array('score'=>金币值,'experience'=>经历值,'title'=>'积分项名称');为空时默认取管理中心积分管理里的配置值
  * @param int $admin_uid
  *        	管理员UID，用于管理员给用户手工加积分时的场景
  */
@@ -1817,10 +1907,26 @@ function add_credit($name, $lock_time = 5, $credit = array(), $admin_uid = 0) {
 	$data = array_merge ( $data, $credit );
 	$credit = D ( 'Common/Credit' )->addCredit ( $data );
 }
+/**
+ * 增加用户余额函数
+ *
+ * @param int $uid
+ *        	用户UID
+ * @param float $money
+ *        	充值金额
+ * @param string $log
+ *        	recharge_log 表需要的数据
+ */
+function add_money($uid, $money, $log = array()) {
+	if (empty ( $uid ) || empty ( $money ))
+		return false;
+	
+	return D ( 'Addons://Card/Card' )->addMoney ( $uid, $money, $log );
+}
 // 判断用户最大可创建的公众号数
 function getPublicMax($uid) {
 	$map ['uid'] = $uid;
-	$public_count = M ( 'member' )->where ( $map )->getField ( 'public_count' );
+	$public_count = M ( 'user' )->where ( $map )->getField ( 'public_count' );
 	if ($public_count === NULL) {
 		$public_count = C ( 'DEFAULT_PUBLIC_CREATE_MAX_NUMB' );
 	}
@@ -1864,6 +1970,8 @@ function event_url($addon_title, $id = '0') {
 }
 // 抽奖或者优惠券领取的插件条件判断
 function addon_condition_check($addon_condition) {
+	if (empty ( $addon_condition ))
+		return true;
 	preg_match_all ( "/\[([\s\S]*):([\*,\d]*)\]/i", $addon_condition, $match );
 	if (empty ( $match [1] [0] ) || empty ( $match [2] [0] )) {
 		return true;
@@ -2003,9 +2111,9 @@ function wp_explode($string, $delimiter = "\s,;\r\n") {
 		return array ();
 		
 		// 转换中文符号
-	$string = iconv ( 'utf-8', 'gbk', $string );
-	$string = preg_replace ( '/\xa3([\xa1-\xfe])/e', 'chr(ord(\1)-0x80)', $string );
-	$string = iconv ( 'gbk', 'utf-8', $string );
+		// $string = iconv ( 'utf-8', 'gbk', $string );
+		// $string = preg_replace ( '/\xa3([\xa1-\xfe])/e', 'chr(ord(\1)-0x80)', $string );
+		// $string = iconv ( 'gbk', 'utf-8', $string );
 	
 	$arr = preg_split ( '/[' . $delimiter . ']+/', $string );
 	return array_unique ( array_filter ( $arr ) );
@@ -2125,7 +2233,7 @@ function int_to_string(&$data, $map = array('status'=>array(1=>'正常',-1=>'删
 	}
 	return $data;
 }
-function importFormExcel($attach_id, $column) {
+function importFormExcel($attach_id, $column, $dateColumn = array()) {
 	$res = array (
 			'status' => 0,
 			'data' => '' 
@@ -2137,12 +2245,13 @@ function importFormExcel($attach_id, $column) {
 	$file = M ( 'file' )->where ( 'id=' . $attach_id )->find ();
 	$root = C ( 'DOWNLOAD_UPLOAD.rootPath' );
 	$filename = SITE_PATH . '/Uploads/Download/' . $file ['savepath'] . $file ['savename'];
+	// dump($filename);
 	if (! file_exists ( $filename )) {
 		$res ['data'] = '上传的文件失败';
 		return $res;
 	}
 	$extend = $file ['ext'];
-	if (! ($extend == 'xls' || $extend == 'xlsx')) {
+	if (! ($extend == 'xls' || $extend == 'xlsx' || $extend == 'csv')) {
 		$res ['data'] = '文件格式不对，请上传xls,xlsx格式的文件';
 		return $res;
 	}
@@ -2151,17 +2260,38 @@ function importFormExcel($attach_id, $column) {
 	vendor ( 'PHPExcel.PHPExcel_IOFactory' );
 	vendor ( 'PHPExcel.Reader.Excel5' );
 	
-	$format = strtolower ( $extend ) == 'xls' ? 'Excel5' : 'excel2007';
-	$objReader = \PHPExcel_IOFactory::createReader ( $format );
+	switch (strtolower ( $extend )) {
+		case 'csv' :
+			$format = 'CSV';
+			$objReader = \PHPExcel_IOFactory::createReader ( $format )->setDelimiter ( ',' )->setInputEncoding ( 'GBK' )->setEnclosure ( '"' )->setLineEnding ( "\r\n" )->setSheetIndex ( 0 );
+			break;
+		case 'xls' :
+			$format = 'Excel5';
+			$objReader = \PHPExcel_IOFactory::createReader ( $format );
+			break;
+		default :
+			$format = 'excel2007';
+			$objReader = \PHPExcel_IOFactory::createReader ( $format );
+	}
+	
 	$objPHPExcel = $objReader->load ( $filename );
 	$objPHPExcel->setActiveSheetIndex ( 0 );
 	$sheet = $objPHPExcel->getSheet ( 0 );
 	$highestRow = $sheet->getHighestRow (); // 取得总行数
-	
 	for($j = 2; $j <= $highestRow; $j ++) {
 		$addData = array ();
 		foreach ( $column as $k => $v ) {
-			$addData [$v] = trim ( ( string ) $objPHPExcel->getActiveSheet ()->getCell ( $k . $j )->getValue () );
+			if ($dateColumn) {
+				foreach ( $dateColumn as $d ) {
+					if ($k == $d) {
+						$addData [$v] = gmdate ( "Y-m-d H:i:s", PHPExcel_Shared_Date::ExcelToPHP ( $objPHPExcel->getActiveSheet ()->getCell ( "$k$j" )->getValue () ) );
+					} else {
+						$addData [$v] = trim ( ( string ) $objPHPExcel->getActiveSheet ()->getCell ( $k . $j )->getValue () );
+					}
+				}
+			} else {
+				$addData [$v] = trim ( ( string ) $objPHPExcel->getActiveSheet ()->getCell ( $k . $j )->getValue () );
+			}
 		}
 		
 		$isempty = true;
@@ -2172,7 +2302,6 @@ function importFormExcel($attach_id, $column) {
 		if (! $isempty)
 			$result [$j] = $addData;
 	}
-	
 	$res ['status'] = 1;
 	$res ['data'] = $result;
 	return $res;
@@ -2213,6 +2342,7 @@ function replace_url($content) {
  */
 function check_category($id) {
 	if (is_array ( $id )) {
+		$id ['type'] = ! empty ( $id ['type'] ) ? $id ['type'] : 2;
 		$type = get_category ( $id ['category_id'], 'type' );
 		$type = explode ( ",", $type );
 		return in_array ( $id ['type'], $type );
@@ -2273,6 +2403,113 @@ function getDistance($lat1, $lng1, $lat2, $lng2) {
 	
 	return round ( $calculatedDistance );
 }
+function getMyDistance($shopGPS) {
+	$arr = explode ( ',', $shopGPS );
+	if (empty ( $arr [0] ) || empty ( $arr [1] ) || ! empty ( $_SESSION ['my_location_' . $GLOBALS ['mid']] ))
+		return ''; // 无法计算
+	
+	$my = explode ( ',', $_SESSION ['my_location_' . $GLOBALS ['mid']] );
+	return getDistance ( $arr [0], $arr [1], $my [0], $my [1] );
+}
+function GPS2Address($location) {
+	$url = 'http://api.map.baidu.com/geocoder/v2/?ak=' . BAIDU_GPS_AK . '&coordtype=wgs84ll&location=' . $location . '&output=json&pois=0';
+	$res = wp_file_get_contents ( $url );
+	// dump ( $url );
+	$res = json_decode ( $res, true );
+	// dump ( $res );
+	return $res ['result'] ['formatted_address'];
+}
+function xml_to_array($xml) {
+	$reg = "/<(\\w+)[^>]*?>([\\x00-\\xFF]*?)<\\/\\1>/";
+	if (preg_match_all ( $reg, $xml, $matches )) {
+		$count = count ( $matches [0] );
+		$arr = array ();
+		for($i = 0; $i < $count; $i ++) {
+			$key = $matches [1] [$i];
+			$val = xml_to_array ( $matches [2] [$i] ); // 递归
+			if (array_key_exists ( $key, $arr )) {
+				if (is_array ( $arr [$key] )) {
+					if (! array_key_exists ( 0, $arr [$key] )) {
+						$arr [$key] = array (
+								$arr [$key] 
+						);
+					}
+				} else {
+					$arr [$key] = array (
+							$arr [$key] 
+					);
+				}
+				$arr [$key] [] = $val;
+			} else {
+				$arr [$key] = $val;
+			}
+		}
+		return $arr;
+	} else {
+		return $xml;
+	}
+}
+// Xml 转 数组, 不包括根键
+function xmltoarray($xml) {
+	$arr = xml_to_array ( $xml );
+	$key = array_keys ( $arr );
+	return $arr [$key [0]];
+}
+
+/**
+ * ************************************************************
+ *
+ * 使用特定function对数组中所有元素做处理
+ *
+ * @param
+ *        	string &$array 要处理的字符串
+ * @param string $function
+ *        	要执行的函数
+ * @return boolean $apply_to_keys_also 是否也应用到key上
+ * @access public
+ *        
+ *         ***********************************************************
+ */
+function arrayRecursive(&$array, $function, $apply_to_keys_also = false) {
+	static $recursive_counter = 0;
+	if (++ $recursive_counter > 1000) {
+		die ( 'possible deep recursion attack' );
+	}
+	foreach ( $array as $key => $value ) {
+		if (is_array ( $value )) {
+			arrayRecursive ( $array [$key], $function, $apply_to_keys_also );
+		} else {
+			$array [$key] = $function ( $value );
+		}
+		
+		if ($apply_to_keys_also && is_string ( $key )) {
+			$new_key = $function ( $key );
+			if ($new_key != $key) {
+				$array [$new_key] = $array [$key];
+				unset ( $array [$key] );
+			}
+		}
+	}
+	$recursive_counter --;
+}
+
+/**
+ * ************************************************************
+ *
+ * 将数组转换为JSON字符串（兼容中文）
+ *
+ * @param array $array
+ *        	要转换的数组
+ * @return string 转换得到的json字符串
+ * @access public
+ *        
+ *         ***********************************************************
+ */
+function JSON($array) {
+	arrayRecursive ( $array, 'urlencode', true );
+	$json = json_encode ( $array );
+	return urldecode ( $json );
+}
 /**
  * 短链接功能
  *
@@ -2308,4 +2545,871 @@ function short_url($long_url) {
 	} else {
 		return $long_url;
 	}
+}
+function makeKeyVal($list, $val = 'title', $key = 'id') {
+	foreach ( $list as $v ) {
+		$arr [$v [$key]] = $v [$val];
+	}
+	return $arr;
+}
+/**
+ * 检查是否是以手机浏览器进入(IN_MOBILE)
+ */
+function isMobile() {
+	$mobile = array ();
+	static $mobilebrowser_list = 'Mobile|iPhone|Android|WAP|NetFront|JAVA|OperasMini|UCWEB|WindowssCE|Symbian|Series|webOS|SonyEricsson|Sony|BlackBerry|Cellphone|dopod|Nokia|samsung|PalmSource|Xphone|Xda|Smartphone|PIEPlus|MEIZU|MIDP|CLDC';
+	// note 获取手机浏览器
+	if (preg_match ( "/$mobilebrowser_list/i", $_SERVER ['HTTP_USER_AGENT'], $mobile )) {
+		return true;
+	} else {
+		if (preg_match ( '/(mozilla|chrome|safari|opera|m3gate|winwap|openwave)/i', $_SERVER ['HTTP_USER_AGENT'] )) {
+			return false;
+		} else {
+			if ($_GET ['mobile'] === 'yes') {
+				return true;
+			} else {
+				return false;
+			}
+		}
+	}
+}
+function isiPhone() {
+	return strpos ( $_SERVER ['HTTP_USER_AGENT'], 'iPhone' ) !== false;
+}
+function isiPad() {
+	return strpos ( $_SERVER ['HTTP_USER_AGENT'], 'iPad' ) !== false;
+}
+function isiOS() {
+	return isiPhone () || isiPad ();
+}
+function isAndroid() {
+	return strpos ( $_SERVER ['HTTP_USER_AGENT'], 'Android' ) !== false;
+}
+
+// 通过服务号获取用户UID
+function get_uid_by_openid($init = true) {
+	$info = get_token_appinfo ();
+	$openid = get_openid ();
+	if (! $openid) {
+		return 0;
+	}
+	
+	$map ['openid'] = $openid;
+	$map ['token'] = $info ['token'];
+	$uid = M ( 'public_follow' )->where ( $map )->getField ( 'uid' );
+	
+	if ($uid) {
+		return $uid;
+	}
+	
+	if (! $init)
+		return 0;
+		
+		// 不存在就初始化
+	$uid = D ( 'Common/Follow' )->init_follow ( $openid, $map ['token'] );
+	return $uid;
+}
+/**
+ * 用SHA1算法生成安全签名
+ */
+function getSHA1($array) {
+	// 排序
+	sort ( $array, SORT_STRING );
+	$str = implode ( $array );
+	return sha1 ( $str );
+}
+function getModelByName($name) {
+	$name = parse_name ( $name );
+	$key = 'getModelByName_' . $name;
+	$model = S ( $key );
+	if (! $model) {
+		$model = M ( 'model' )->getByName ( $name );
+		S ( $key, $model, 86400 );
+	}
+	
+	return $model;
+}
+// 复制目录，目前用于生成素材
+function copydir($strSrcDir, $strDstDir) {
+	$dir = opendir ( $strSrcDir );
+	if (! $dir) {
+		return false;
+	}
+	if (! is_dir ( $strDstDir )) {
+		if (! mkdir ( $strDstDir )) {
+			return false;
+		}
+	}
+	while ( false !== ($file = readdir ( $dir )) ) {
+		if ($file == '.' || $file == '..' || $file == '.svn' || $file == '.DS_Store' || $file == '__MACOSX' || $file == 'Thumbs.db' || $file == 'Thumbs.db' || $file == 'info.php') {
+			continue;
+		}
+		if (is_dir ( $strSrcDir . '/' . $file )) {
+			if (! copydir ( $strSrcDir . '/' . $file, $strDstDir . '/' . $file )) {
+				return false;
+			}
+		} else {
+			if (! copy ( $strSrcDir . '/' . $file, $strDstDir . '/' . $file )) {
+				return false;
+			}
+		}
+	}
+	closedir ( $dir );
+	return true;
+}
+/**
+ * 获取插件的配置数组
+ */
+function getAddonConfig($name, $token = '') {
+	static $_config = array ();
+	if (isset ( $_config [$name] )) {
+		return $_config [$name];
+	}
+	$config = array ();
+	
+	$token = empty ( $token ) ? get_token () : $token;
+	// dump($token);
+	if (! empty ( $token )) {
+		$addon_config = get_token_appinfo ( $token, 'addon_config' );
+		$addon_config = json_decode ( $addon_config, true );
+		if (isset ( $addon_config [$name] ))
+			$config = $addon_config [$name];
+	}
+	if (empty ( $config )) {
+		$config = D ( 'Home/Addons' )->getInfoByName ( $name );
+		$config = json_decode ( $config ['config'], true );
+	}
+	if (! $config) {
+		$temp_arr = include_once ONETHINK_ADDON_PATH . $name . '/config.php';
+		foreach ( $temp_arr as $key => $value ) {
+			$config [$key] = $temp_arr [$key] ['value'];
+		}
+	}
+	$_config [$name] = $config;
+	return $config;
+}
+function getPluginConfig($name, $token = '') {
+	static $_config = array ();
+	if (isset ( $_config [$name] )) {
+		return $_config [$name];
+	}
+	
+	$config = array ();
+	
+	$token = empty ( $token ) ? get_token () : $token;
+	// dump($token);
+	if (! empty ( $token )) {
+		$addon_config = get_token_appinfo ( $token, 'addon_config' );
+		$addon_config = json_decode ( $addon_config, true );
+		if (isset ( $addon_config [$name] ))
+			$config = $addon_config [$name];
+	}
+	if (empty ( $config )) {
+		$config = D ( 'Home/Plugins' )->getInfoByName ( $name );
+		$config = json_decode ( $config ['config'], true );
+	}
+	if (! $config) {
+		$temp_arr = include_once ONETHINK_PLUGIN_PATH . $name . '/config.php';
+		foreach ( $temp_arr as $key => $value ) {
+			$config [$key] = $temp_arr [$key] ['value'];
+		}
+	}
+	$_config [$name] = $config;
+	return $config;
+}
+// 删除目录及目录下的所有子目录和文件
+function rmdirr($dirname) {
+	if (! file_exists ( $dirname )) {
+		return false;
+	}
+	if (is_file ( $dirname ) || is_link ( $dirname )) {
+		return unlink ( $dirname );
+	}
+	$dir = dir ( $dirname );
+	if ($dir) {
+		while ( false !== $entry = $dir->read () ) {
+			if ($entry == '.' || $entry == '..') {
+				continue;
+			}
+			rmdirr ( $dirname . DIRECTORY_SEPARATOR . $entry );
+		}
+	}
+	$dir->close ();
+	return rmdir ( $dirname );
+}
+function wp_money_format($number, $decimals = '2') {
+	return number_format ( $number, $decimals );
+}
+
+// 以POST方式提交数据
+function post_data($url, $param, $is_file = false, $return_array = true) {
+	if (! $is_file && is_array ( $param )) {
+		$param = JSON ( $param );
+	}
+	if ($is_file) {
+		$header [] = "content-type: multipart/form-data; charset=UTF-8";
+	} else {
+		$header [] = "content-type: application/json; charset=UTF-8";
+	}
+	
+	$ch = curl_init ();
+	curl_setopt ( $ch, CURLOPT_URL, $url );
+	curl_setopt ( $ch, CURLOPT_CUSTOMREQUEST, "POST" );
+	curl_setopt ( $ch, CURLOPT_SSL_VERIFYPEER, FALSE );
+	curl_setopt ( $ch, CURLOPT_SSL_VERIFYHOST, FALSE );
+	curl_setopt ( $ch, CURLOPT_HTTPHEADER, $header );
+	curl_setopt ( $ch, CURLOPT_USERAGENT, 'Mozilla/4.0 (compatible; MSIE 5.01; Windows NT 5.0)' );
+	curl_setopt ( $ch, CURLOPT_FOLLOWLOCATION, 1 );
+	curl_setopt ( $ch, CURLOPT_AUTOREFERER, 1 );
+	curl_setopt ( $ch, CURLOPT_POSTFIELDS, $param );
+	curl_setopt ( $ch, CURLOPT_RETURNTRANSFER, true );
+	$res = curl_exec ( $ch );
+	
+	$flat = curl_errno ( $ch );
+	if ($flat) {
+		$data = curl_error ( $ch );
+		addWeixinLog ( $flat, 'post_data flat' );
+		addWeixinLog ( $data, 'post_data msg' );
+	}
+	
+	curl_close ( $ch );
+	
+	$return_array && $res = json_decode ( $res, true );
+	
+	return $res;
+}
+// 生成签名
+function make_sign($paraMap = array(), $partner_key = '') {
+	$buff = "";
+	ksort ( $paraMap );
+	$paraMap ['key'] = $partner_key;
+	foreach ( $paraMap as $k => $v ) {
+		if (null != $v && "null" != $v && '' != $v && "sign" != $k) {
+			$buff .= strtolower ( $k ) . "=" . $v . "&";
+		}
+	}
+	$reqPar;
+	if (strlen ( $buff ) > 0) {
+		$reqPar = substr ( $buff, 0, strlen ( $buff ) - 1 );
+	}
+	return strtoupper ( md5 ( $reqPar ) );
+}
+// 更具目录获取素材信息
+function get_sucai_template_info($template = "default", $addons) {
+	$dir = SITE_PATH . '/SucaiTemplate/' . $addons;
+	if (file_exists ( $dir . '/' . $template . '/info.php' )) {
+		$info = require_once $dir . '/' . $template . '/info.php';
+		return $info;
+		exit ();
+	}
+	return NULL;
+}
+// //////靓妆//////////
+/*
+ * 分时分段的抽奖算法 prizeArr 奖品数据，结构是：array(array(prize_id=>1,prize_num=>2),array(prize_id=>2,prize_num=>4),...); start_time 开始的时间戳 end_time 结束的时间戳 event_id 抽奖的活动ID，以确保每个抽奖不冲突
+ */
+function get_lottery1($prizeArr, $start_time, $end_time, $event_id = 0, $uid = 0, $update = false, $token = '') {
+	if (empty ( $uid ) && $token) {
+		// $uid = get_mid ();
+		$key = 'function_lottery_' . $token . '_' . $event_id;
+	}
+	if (! empty ( $uid )) {
+		$key = 'function_lottery_' . $uid . '_' . $event_id;
+	}
+	$res = S ( $key );
+	if ($res === false || $update) {
+		$res = false;
+		// 奖品ID组处理
+		$count = 0;
+		foreach ( $prizeArr as $p ) {
+			for($i = 0; $i < $p ['prize_num']; $i ++) {
+				$rand [] = $p ['prize_id'];
+				$count += 1;
+			}
+		}
+		// 奖品ID排序随机
+		shuffle ( $rand );
+		
+		// 时间分段
+		$start_time < NOW_TIME && $start_time = NOW_TIME; // 如果活动已经开始，以当前时间为开始时间
+		
+		$total_time = $end_time - $start_time;
+		
+		$section_time = floor ( $total_time / $count );
+		
+		// 生成中奖的数组 结构是：array('中奖的随机时间点'=>'中奖的奖品ID');
+		$stime = $start_time;
+		for($j = 0; $j < $count; $j ++) {
+			$etime = $stime + $section_time;
+			$index = rand ( $stime, $etime );
+			$res [$index] = $rand [$j];
+			
+			$stime = $etime;
+		}
+		S ( $key, $res );
+	}
+	
+	return $res;
+}
+function del_lottery1($index, $event_id = 0, $uid = 0, $token = '') {
+	if (empty ( $uid ) && $token) {
+		$key = 'function_lottery_' . $token . '_' . $event_id;
+	}
+	if (! empty ( $uid )) {
+		$key = 'function_lottery_' . $uid . '_' . $event_id;
+	}
+	
+	$res = S ( $key );
+	if ($res === false)
+		return false;
+	
+	unset ( $res [$index] );
+	S ( $key, $res );
+}
+// ////////////sports//////////////
+/*
+ * 分时分段的抽奖算法 prizeArr 奖品数据，结构是：array(array(prize_id=>1,prize_num=>2),array(prize_id=>2,prize_num=>4),...); start_time 开始的时间戳 end_time 结束的时间戳 event_id 抽奖的活动ID，以确保每个抽奖不冲突
+ */
+function get_lottery($prizeArr, $start_time, $end_time, $event_id = 0, $update = false) {
+	$key = 'function_lottery_' . $event_id;
+	$res = S ( $key );
+	if ($res === false || $update) {
+		$res = false;
+		// 奖品ID组处理
+		$count_shiwu = 0;
+		foreach ( $prizeArr ['shiwu'] as $p ) {
+			for($i = 0; $i < $p ['prize_num']; $i ++) {
+				$rand_shiwu [] = $p ['prize_id'];
+				$count_shiwu += 1;
+			}
+		}
+		// $count_xuni = 0;
+		// foreach ( $prizeArr ['xuni'] as $p ) {
+		// for($i = 0; $i < $p ['prize_num']; $i ++) {
+		// $rand_xuni [] = $p ['prize_id'];
+		// $count_xuni += 1;
+		// }
+		// }
+		// 奖品ID排序随机
+		shuffle ( $rand_shiwu );
+		// shuffle ( $rand_xuni );
+		
+		// 时间分段
+		$start_time < NOW_TIME && $start_time = NOW_TIME; // 如果活动已经开始，以当前时间为开始时间
+		
+		$total_time = $end_time - $start_time;
+		$section_time = floor ( $total_time / $count_shiwu );
+		// 生成中奖的数组 结构是：array('中奖的随机时间点'=>'中奖的奖品ID');
+		$stime = $start_time;
+		for($j = 0; $j < $count_shiwu; $j ++) {
+			
+			$etime = $stime + $section_time;
+			// $index = rand ( $stime, $etime );
+			// $res [$index] = $rand_shiwu [$j];
+			$shiwu_prize [$etime] = $rand_shiwu [$j];
+			$stime = $etime;
+		}
+		$res ['shiwu'] = $shiwu_prize;
+		// $res ['xuni'] = $rand_xuni;
+		S ( $key, $res );
+	}
+	
+	return $res;
+}
+// 根据概率随机抽取积分奖品
+function get_jifen_lottery($proArr) {
+	$allPro = array_sum ( $proArr );
+	$result = 0;
+	foreach ( $proArr as $k => $p ) {
+		$randNum = mt_rand ( 1, $allPro );
+		if ($randNum <= $p) {
+			$result = $k;
+		} else {
+			$allPro -= $p;
+		}
+	}
+	unset ( $proArr );
+	return $result;
+}
+function del_lottery($index, $event_id = 0, $delkeyname = 'shiwu') {
+	$key = 'function_lottery_' . $event_id;
+	$res = S ( $key );
+	if ($res === false)
+		return false;
+	
+	unset ( $res [$delkeyname] [$index] );
+	S ( $key, $res );
+}
+function lists_msubstr($str) {
+	return msubstr ( $str, 0, 30 );
+}
+function parseComment($comment, $file = 'lzwg', $width = '40') {
+	preg_match_all ( '/\[[a-zA-Z0-9]+\]/', $comment, $res );
+	$faceData = $res [0];
+	if (count ( $faceData ) != 0) {
+		foreach ( $faceData as $v ) {
+			$faceName = substr ( $v, 1, strlen ( $v ) - 2 );
+			$faceUrl = '<img width=' . $width . ' src="' . SITE_URL . '/Public/static/face/' . $file . '/' . $faceName . '.png"/>';
+			$replaceArr [$v] = $faceUrl;
+		}
+	}
+	if ($replaceArr) {
+		$comment = strtr ( $comment, $replaceArr );
+	}
+	return $comment;
+}
+/**
+ * 系统非常规MD5加密方法
+ *
+ * @param string $str
+ *        	要加密的字符串
+ * @return string
+ */
+function think_weiphp_md5($str, $key = '') {
+	empty ( $key ) && $key = C ( 'DATA_AUTH_KEY' );
+	return '' === $str ? '' : md5 ( sha1 ( $str ) . $key );
+}
+/**
+ * 检测验证码
+ *
+ * @param integer $id
+ *        	验证码ID
+ * @return boolean 检测结果
+ * @author 麦当苗儿 <zuojiazi@vip.qq.com>
+ */
+function check_verify($code, $id = 1) {
+	$verify = new \Think\Verify ();
+	return $verify->check ( $code, $id );
+}
+// 权限检查
+function checkRule($rule = '', $uid = '') {
+	static $Auth = null;
+	if (! $Auth) {
+		$Auth = new \Think\Auth ();
+	}
+	return $Auth->checkRule ( $rule, $uid );
+}
+// 微信端的错误码转中文解释
+function error_msg($return, $more_tips = '') {
+	$msg = array (
+			'-1' => '系统繁忙，此时请开发者稍候再试',
+			'0' => '请求成功',
+			'40001' => '获取access_token时AppSecret错误，或者access_token无效。请开发者认真比对AppSecret的正确性，或查看是否正在为恰当的公众号调用接口',
+			'40002' => '不合法的凭证类型',
+			'40003' => '不合法的OpenID，请开发者确认OpenID（该用户）是否已关注公众号，或是否是其他公众号的OpenID',
+			'40004' => '不合法的媒体文件类型',
+			'40005' => '不合法的文件类型',
+			'40006' => '不合法的文件大小',
+			'40007' => '不合法的媒体文件id',
+			'40008' => '不合法的消息类型',
+			'40009' => '不合法的图片文件大小',
+			'40010' => '不合法的语音文件大小',
+			'40011' => '不合法的视频文件大小',
+			'40012' => '不合法的缩略图文件大小',
+			'40013' => '不合法的AppID，请开发者检查AppID的正确性，避免异常字符，注意大小写',
+			'40014' => '不合法的access_token，请开发者认真比对access_token的有效性（如是否过期），或查看是否正在为恰当的公众号调用接口',
+			'40015' => '不合法的菜单类型',
+			'40016' => '不合法的按钮个数',
+			'40017' => '不合法的按钮个数',
+			'40018' => '不合法的按钮名字长度',
+			'40019' => '不合法的按钮KEY长度',
+			'40020' => '不合法的按钮URL长度',
+			'40021' => '不合法的菜单版本号',
+			'40022' => '不合法的子菜单级数',
+			'40023' => '不合法的子菜单按钮个数',
+			'40024' => '不合法的子菜单按钮类型',
+			'40025' => '不合法的子菜单按钮名字长度',
+			'40026' => '不合法的子菜单按钮KEY长度',
+			'40027' => '不合法的子菜单按钮URL长度',
+			'40028' => '不合法的自定义菜单使用用户',
+			'40029' => '不合法的oauth_code',
+			'40030' => '不合法的refresh_token',
+			'40031' => '不合法的openid列表',
+			'40032' => '不合法的openid列表长度',
+			'40033' => '不合法的请求字符，不能包含\uxxxx格式的字符',
+			'40035' => '不合法的参数',
+			'40038' => '不合法的请求格式',
+			'40039' => '不合法的URL长度',
+			'40050' => '不合法的分组id',
+			'40051' => '分组名字不合法',
+			'40117' => '分组名字不合法',
+			'40118' => 'media_id大小不合法',
+			'40119' => 'button类型错误',
+			'40120' => 'button类型错误',
+			'40121' => '不合法的media_id类型',
+			'40132' => '微信号不合法',
+			'40137' => '不支持的图片格式',
+			'41001' => '缺少access_token参数',
+			'41002' => '缺少appid参数',
+			'41003' => '缺少refresh_token参数',
+			'41004' => '缺少secret参数',
+			'41005' => '缺少多媒体文件数据',
+			'41006' => '缺少media_id参数',
+			'41007' => '缺少子菜单数据',
+			'41008' => '缺少oauth code',
+			'41009' => '缺少openid',
+			'42001' => 'access_token超时，请检查access_token的有效期，请参考基础支持-获取access_token中，对access_token的详细机制说明',
+			'42002' => 'refresh_token超时',
+			'42003' => 'oauth_code超时',
+			'43001' => '需要GET请求',
+			'43002' => '需要POST请求',
+			'43003' => '需要HTTPS请求',
+			'43004' => '需要接收者关注',
+			'43005' => '需要好友关系',
+			'44001' => '多媒体文件为空',
+			'44002' => 'POST的数据包为空',
+			'44003' => '图文消息内容为空',
+			'44004' => '文本消息内容为空',
+			'45001' => '多媒体文件大小超过限制',
+			'45002' => '消息内容超过限制',
+			'45003' => '标题字段超过限制',
+			'45004' => '描述字段超过限制',
+			'45005' => '链接字段超过限制',
+			'45006' => '图片链接字段超过限制',
+			'45007' => '语音播放时间超过限制',
+			'45008' => '图文消息超过限制',
+			'45009' => '接口调用超过限制',
+			'45010' => '创建菜单个数超过限制',
+			'45015' => '回复时间超过限制',
+			'45016' => '系统分组，不允许修改',
+			'45017' => '分组名字过长',
+			'45018' => '分组数量超过上限',
+			'46001' => '不存在媒体数据',
+			'46002' => '不存在的菜单版本',
+			'46003' => '不存在的菜单数据',
+			'46004' => '不存在的用户',
+			'47001' => '解析JSON/XML内容错误',
+			'48001' => 'api功能未授权，请确认公众号已获得该接口，可以在公众平台官网-开发者中心页中查看接口权限',
+			'50001' => '用户未授权该api',
+			'50002' => '用户受限，可能是违规后接口被封禁',
+			'61451' => '参数错误(invalid parameter)',
+			'61452' => '无效客服账号(invalid kf_account)',
+			'61453' => '客服帐号已存在(kf_account exsited)',
+			'61454' => '客服帐号名长度超过限制(仅允许10个英文字符，不包括@及@后的公众号的微信号)(invalid kf_acount length)',
+			'61455' => '客服帐号名包含非法字符(仅允许英文+数字)(illegal character in kf_account)',
+			'61456' => '客服帐号个数超过限制(10个客服账号)(kf_account count exceeded)',
+			'61457' => '无效头像文件类型(invalid file type)',
+			'61450' => '系统错误(system error)',
+			'61500' => '日期格式错误',
+			'61501' => '日期范围错误',
+			'9001001' => 'POST数据参数不合法',
+			'9001002' => '远端服务不可用',
+			'9001003' => 'Ticket不合法',
+			'9001004' => '获取摇周边用户信息失败',
+			'9001005' => '获取商户信息失败',
+			'9001006' => '获取OpenID失败',
+			'9001007' => '上传文件缺失',
+			'9001008' => '上传素材的文件类型不合法',
+			'9001009' => '上传素材的文件尺寸不合法',
+			'9001010' => '上传失败',
+			'9001020' => '帐号不合法',
+			'9001021' => '已有设备激活率低于50%，不能新增设备',
+			'9001022' => '设备申请数不合法，必须为大于0的数字',
+			'9001023' => '已存在审核中的设备ID申请',
+			'9001024' => '一次查询设备ID数量不能超过50',
+			'9001025' => '设备ID不合法',
+			'9001026' => '页面ID不合法',
+			'9001027' => '页面参数不合法',
+			'9001028' => '一次删除页面ID数量不能超过10',
+			'9001029' => '页面已应用在设备中，请先解除应用关系再删除',
+			'9001030' => '一次查询页面ID数量不能超过50',
+			'9001031' => '时间区间不合法',
+			'9001032' => '保存设备与页面的绑定关系参数错误',
+			'9001033' => '门店ID不合法',
+			'9001034' => '设备备注信息过长',
+			'9001035' => '设备申请参数不合法',
+			'9001036' => '查询起始值begin不合法' 
+	);
+	
+	if ($more_tips) {
+		$res = $more_tips . ': ';
+	} else {
+		$res = '';
+	}
+	if (isset ( $msg [$return ['errcode']] )) {
+		$res .= $msg [$return ['errcode']];
+	} else {
+		$res .= $return ['errmsg'];
+	}
+	
+	$res .= ', 返回码：' . $return ['errcode'];
+	
+	return $res;
+}
+/* yqx */
+function virifylocal() {
+	define ( 'VIRIFY', true );
+	define ( 'HTML_VESION', 'index3_6' );
+	C ( 'JS_VISION', 3.6 );
+}
+/**
+ * 获取随机字符串
+ *
+ * @param number $length        	
+ * @return string
+ */
+function createNonceStr($length = 16) {
+	$chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	$str = "";
+	for($i = 0; $i < $length; $i ++) {
+		$str .= substr ( $chars, mt_rand ( 0, strlen ( $chars ) - 1 ), 1 );
+	}
+	return $str;
+}
+function checkAllow_nums() {
+	/*
+	 * $_scene = M('scene'); $where['uid'] = intval(session('mid')); $where['delete_int'] =0; $count = $_scene->where($where)->count(); $allowNum=M('user')->where($where)->getField('allow_nums');
+	 */
+	$allowNum = 20;
+	if ($count >= $allowNum) {
+		echo '{"success":true,"code":1006,"msg":' . $allowNum . ',"obj":null,"map":null,"list":null}';
+		exit ();
+	}
+	return true;
+}
+function randorderno($length = 10, $type = 0) {
+	$arr = array (
+			1 => "3425678934567892345678934567892",
+			2 => "ABCDEFGHJKLMNPQRSTUVWXY" 
+	);
+	$code = '';
+	if ($type == 0) {
+		array_pop ( $arr );
+		$string = implode ( "", $arr );
+	} else if ($type == "-1") {
+		$string = implode ( "", $arr );
+	} else {
+		$string = $arr [$type];
+	}
+	$count = strlen ( $string ) - 1;
+	for($i = 0; $i < $length; $i ++) {
+		$str [$i] = $string [rand ( 0, $count )];
+		$code .= $str [$i];
+	}
+	return $code;
+}
+function aboutaa() {
+	virifylocal ();
+}
+// 泛域名情况下的域名替换
+function chang_domain($url, $domain) {
+	if (! C ( 'DIV_DOMAIN' ) || is_numeric ( $domain ) || SITE_DOMAIN == 'localhost' || empty ( $domain ))
+		return $url;
+	
+	$arr = explode ( '.', SITE_DOMAIN );
+	if (count ( $arr ) < 3) { // 顶级域名
+		$new_site_domain = $domain . '.' . SITE_DOMAIN;
+	} else {
+		$arr [0] = $domain;
+		$new_site_domain = implode ( '.', $arr );
+	}
+	
+	$url = str_replace ( SITE_DOMAIN, $new_site_domain, $url );
+	
+	return $url;
+}
+// 获取当前网址的顶级域名
+function top_domain() {
+	if (strpos ( SITE_DOMAIN, 'weiphp.cn' ) !== false) {
+		return '.weiphp.cn';
+	} else {
+		return '.oftenchat.cn';
+	}
+}
+// 处理带Emoji的数据，type=0表示写入数据库前的emoji转为HTML，为1时表示HTML转为emoji码
+function deal_emoji($msg, $type = 1) {
+	if ($type == 0) {
+		$msg = json_encode ( $msg );
+	} else {
+		$txt = json_decode ( $msg );
+		if ($txt !== null) {
+			$msg = $txt;
+		}
+	}
+	
+	return $msg;
+}
+// 从微信下载临时图片文件
+// $media_id 媒体文件ID
+function down_media($media_id) {
+	$savePath = SITE_PATH . '/Uploads/Picture/' . time_format ( NOW_TIME, 'Y-m-d' );
+	mkdirs ( $savePath );
+	// 获取图片URL
+	$url = 'http://file.api.weixin.qq.com/cgi-bin/media/get?access_token=' . get_access_token () . '&media_id=' . $media_id;
+	
+	$picContent = outputCurl ( $url );
+	$picjson = json_decode ( $picContent, true );
+	if (isset ( $picjson ['errcode'] ) && $picjson ['errcode'] != 0) {
+		return 0;
+	}
+	// if ($picContent) {
+	$picName = NOW_TIME . '.jpg';
+	$picPath = $savePath . '/' . $picName;
+	$res = file_put_contents ( $picPath, $picContent );
+	// }
+	$cover_id = 0;
+	if ($res) {
+		// 保存记录，添加到picture表里，获取coverid
+		$url = U ( 'File/uploadPicture', array (
+				'session_id' => session_id () 
+		) );
+		$_FILES ['download'] = array (
+				'name' => $picName,
+				'type' => 'application/octet-stream',
+				'tmp_name' => $picPath,
+				'size' => $res,
+				'error' => 0 
+		);
+		$Picture = D ( 'Picture' );
+		$pic_driver = C ( 'PICTURE_UPLOAD_DRIVER' );
+		$info = $Picture->upload ( $_FILES, C ( 'PICTURE_UPLOAD' ), C ( 'PICTURE_UPLOAD_DRIVER' ), C ( "UPLOAD_{$pic_driver}_CONFIG" ) );
+		$cover_id = $info ['download'] ['id'];
+		unlink ( $picPath );
+	}
+	return $cover_id;
+}
+function outputCurl($url) {
+	$ch = curl_init ();
+	curl_setopt ( $ch, CURLOPT_URL, $url );
+	curl_setopt ( $ch, CURLOPT_RETURNTRANSFER, true );
+	$output = curl_exec ( $ch );
+	curl_close ( $ch );
+	return $output;
+}
+
+// 上传多媒体文体
+function upload_media($path, $type = 'image') {
+	$url = 'http://file.api.weixin.qq.com/cgi-bin/media/upload?access_token=' . get_access_token ();
+	$param ['type'] = $type;
+	$param ['media'] = '@' . realpath ( $path );
+	$res = post_data ( $url, $param, true );
+	if (isset ( $res ['errcode'] ) && $res ['errcode'] != 0) {
+		$this->error ( error_msg ( $res, '图片上传' ) );
+		exit ();
+	}
+	return $res ['media_id'];
+}
+// 短信锁
+function smsLock($tel, $time = 60) {
+	
+	// 锁定时间
+	$locktime = $time;
+	// 创建目录
+	if (! is_dir ( SITE_PATH . '/Data/smslock/' ))
+		mkdir ( SITE_PATH . '/Data/smslock/', 0777, true );
+		// 锁文件
+	$lockfile = SITE_PATH . '/Data/smslock/' . $tel . '.txt';
+	// 文件验证时间间隔
+	if (file_exists ( $lockfile )) {
+		if ((time () - filemtime ( $lockfile )) < $locktime) {
+			return false;
+		} else {
+			$k = fopen ( $lockfile, "a+" );
+			fwrite ( $k, ',' . time () );
+			fclose ( $k );
+		}
+	} else {
+		touch ( $lockfile );
+	}
+	return true;
+}
+// 下载永久素材
+function do_down_image($media_id, $picUrl = '') {
+	$savePath = SITE_PATH . '/Uploads/Picture/' . time_format ( NOW_TIME, 'Y-m-d' );
+	mkdirs ( $savePath );
+	if (empty ( $picUrl )) {
+		// 获取图片URL
+		$url = 'https://api.weixin.qq.com/cgi-bin/material/get_material?access_token=' . get_access_token ();
+		$param ['media_id'] = $media_id;
+		$picContent = post_data ( $url, $param, false, false );
+		$picjson = json_decode ( $picContent, true );
+		if (isset ( $picjson ['errcode'] ) && $picjson ['errcode'] != 0) {
+			// $this->error ( error_msg ( $picjson, '下载图片' ) );
+			return 0;
+			exit ();
+		}
+		// dump($picContent);
+		// dump($picjson);
+		// if ($picContent){
+		$picName = NOW_TIME . '.jpg';
+		$picPath = $savePath . '/' . $picName;
+		$res = file_put_contents ( $picPath, $picContent );
+		// }
+	} else {
+		$content = wp_file_get_contents ( $picUrl );
+		// 获取图片扩展名
+		$picExt = substr ( $picUrl, strrpos ( $picUrl, '=' ) + 1 );
+		// $picExt=='jpeg'
+		if (empty ( $picExt ) || $picExt == 'jpeg') {
+			$picExt = 'jpg';
+		}
+		$picName = NOW_TIME . '.' . $picExt;
+		$picPath = $savePath . '/' . $picName;
+		$res = file_put_contents ( $picPath, $content );
+		if (! $res) {
+			// $this->error ( '远程图片下载失败' );
+			// exit ();
+			return 0;
+			exit ();
+		}
+	}
+	$cover_id = 0;
+	if ($res) {
+		// 保存记录，添加到picture表里，获取coverid
+		$url = U ( 'File/uploadPicture', array (
+				'session_id' => session_id () 
+		) );
+		$_FILES ['download'] = array (
+				'name' => $picName,
+				'type' => 'application/octet-stream',
+				'tmp_name' => $picPath,
+				'size' => $res,
+				'error' => 0 
+		);
+		$Picture = D ( 'Picture' );
+		$pic_driver = C ( 'PICTURE_UPLOAD_DRIVER' );
+		$info = $Picture->upload ( $_FILES, C ( 'PICTURE_UPLOAD' ), C ( 'PICTURE_UPLOAD_DRIVER' ), C ( "UPLOAD_{$pic_driver}_CONFIG" ) );
+		$cover_id = $info ['download'] ['id'];
+		unlink ( $picPath );
+	}
+	return $cover_id;
+}
+// 下载临时语言、视频素材
+function down_file_media($media_id, $type = 'voice') {
+	$savePath = SITE_PATH . '/Uploads/Download/' . time_format ( NOW_TIME, 'Y-m-d' );
+	mkdirs ( $savePath );
+	// 获取图片URL
+	$url = 'http://file.api.weixin.qq.com/cgi-bin/media/get?access_token=' . get_access_token () . '&media_id=' . $media_id;
+	$picContent = outputCurl ( $url );
+	$picjson = json_decode ( $picContent, true );
+	if (isset ( $picjson ['errcode'] ) && $picjson ['errcode'] != 0) {
+		return 0;
+	}
+	if ($type == 'voice') {
+		$ext = 'mp3';
+	} else if ($type == 'video') {
+		$ext = 'mp4';
+	}
+	if ($picContent) {
+		$picName = NOW_TIME . '.' . $ext;
+		$picPath = $savePath . '/' . $picName;
+		$res = file_put_contents ( $picPath, $picContent );
+	}
+	$cover_id = 0;
+	if ($res) {
+		// 保存记录，添加到picture表里，获取coverid
+		$_FILES ['download'] = array (
+				'name' => $picName,
+				'type' => 'application/octet-stream',
+				'tmp_name' => $picPath,
+				'size' => $res,
+				'error' => 0 
+		);
+		$File = D ( 'Home/File' );
+		$file_driver = C ( 'DOWNLOAD_UPLOAD_DRIVER' );
+		$info = $File->upload ( $_FILES, C ( 'DOWNLOAD_UPLOAD' ), C ( 'DOWNLOAD_UPLOAD_DRIVER' ), C ( "UPLOAD_{$file_driver}_CONFIG" ) );
+		$cover_id = $info ['download'] ['id'];
+		unlink ( $picPath );
+	}
+	return $cover_id;
 }

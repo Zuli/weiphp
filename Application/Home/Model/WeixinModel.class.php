@@ -24,8 +24,20 @@ class WeixinModel extends Model {
 			$this->sReqNonce = I ( 'get.nonce' );
 			$this->sEncryptMsg = I ( 'get.msg_signature' );
 			
-			$map ['id'] = I ( 'get.id' );
-			$info = M ( 'member_public' )->where ( $map )->find ();
+			if (isset ( $_GET ['appid'] )) {
+				if ($_GET ['appid'] == 'wx570bc396a51b8ff8') {
+					$info ['token'] = 'gh_3c884a361561';
+					$info ['encodingaeskey'] = 'DfEqNBRvzbg8MJdRQCSGyaMp6iLcGOldKFT0r8I6Tnp';
+					$info ['appid'] = 'wxea0485bef5247236';
+				} else {
+					$map ['appid'] = I ( 'get.appid' );
+					$info = D ( 'Common/Public' )->where ( $map )->find ();
+				}
+			} else {
+				$id = I ( 'get.id' );
+				$info = D ( 'Common/Public' )->getInfo ( $id );
+			}
+			
 			get_token ( $info ['token'] ); // 设置token
 			
 			$this->wxcpt = new \WXBizMsgCrypt ( 'weiphp', $info ['encodingaeskey'], $info ['appid'] );
@@ -34,6 +46,7 @@ class WeixinModel extends Model {
 			$errCode = $this->wxcpt->DecryptMsg ( $this->sEncryptMsg, $this->sReqTimeStamp, $this->sReqNonce, $content, $sMsg );
 			if ($errCode != 0) {
 				addWeixinLog ( $_GET, "DecryptMsg Error: " . $errCode );
+				addWeixinLog ( $content, "DecryptMsg Error: content" );
 				exit ();
 			} else {
 				// 解密成功，sMsg即为xml格式的明文
@@ -44,7 +57,7 @@ class WeixinModel extends Model {
 		$data = new \SimpleXMLElement ( $content );
 		// $data || die ( '参数获取失败' );
 		foreach ( $data as $key => $value ) {
-			$this->data [$key] = strval ( $value );
+			$this->data [$key] = safe ( strval ( $value ) );
 		}
 	}
 	/* 获取微信平台请求的信息 */
@@ -100,9 +113,9 @@ class WeixinModel extends Model {
 		$msg ['CreateTime'] = NOW_TIME;
 		$msg ['MsgType'] = $msgType;
 		
-		if($_REQUEST ['doNotInit']){
-			dump($msg);
-			exit;
+		if ($_REQUEST ['doNotInit']) {
+			dump ( $msg );
+			exit ();
 		}
 		
 		$xml = new \SimpleXMLElement ( '<xml></xml>' );

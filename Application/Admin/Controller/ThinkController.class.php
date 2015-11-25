@@ -23,22 +23,22 @@ class ThinkController extends AdminController {
 	 * @author 凡星
 	 */
 	public function lists($model = null, $p = 0) {
-		is_array($model) || $model = $this->getModel ( $model );
-
+		is_array ( $model ) || $model = $this->getModel ( $model );
+		
 		$list_data = $this->_get_model_list ( $model, $p );
 		$this->assign ( $list_data );
 		
 		$this->meta_title = $model ['title'] . '列表';
-
-		$this->display ( $model ['template_list'] );
+		
+		$this->display ();
 	}
 	public function edit($model = null, $id = 0) {
-		is_array($model) || $model = $this->getModel ( $model );
+		is_array ( $model ) || $model = $this->getModel ( $model );
 		$this->meta_title = '编辑' . $model ['title'];
 		parent::common_edit ( $model, $id );
 	}
 	public function add($model = null) {
-		is_array($model) || $model = $this->getModel ( $model );
+		is_array ( $model ) || $model = $this->getModel ( $model );
 		$this->meta_title = '新增' . $model ['title'];
 		parent::common_add ( $model );
 	}

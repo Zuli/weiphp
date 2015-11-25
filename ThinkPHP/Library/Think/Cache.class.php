@@ -37,11 +37,7 @@ class Cache {
      */
     public function connect($type='',$options=array()) {
         if(empty($type))  $type = C('DATA_CACHE_TYPE');
-        if(strpos($type,'\\')){ // 驱动类支持使用独立的命名空间
-            $class  =   $type;
-        }else{
-            $class  =   'Think\\Cache\\Driver\\'.ucwords(strtolower($type));            
-        }
+        $class  =   strpos($type,'\\')? $type : 'Think\\Cache\\Driver\\'.ucwords(strtolower($type));            
         if(class_exists($class))
             $cache = new $class($options);
         else
@@ -113,7 +109,7 @@ class Cache {
             $this->rm($key);
              if(APP_DEBUG){
                 //调试模式下，记录出列次数
-                N($queue_name.'_out_times',1,true);
+                N($queue_name.'_out_times',1);
             }
         }
         return $fun[1]($queue_name,$value);

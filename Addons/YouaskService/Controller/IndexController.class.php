@@ -263,13 +263,11 @@ class IndexController extends ChatBaseController{
 	}
 	public function send_info($content,$openid,$pid=1,$type=1){
 		//查询appid appkey是否存在
-		$api=M('member_public')->where(array('token'=>session('YouaskService_token')))->find();
+		$api=M('public')->where(array('token'=>session('YouaskService_token')))->find();
 		//dump($api);
 		if($api['appid']==false||$api['secret']==false){$this->error('必须先填写【AppId】【 AppSecret】');exit;}
 		//获取微信认证
-		$url_get='https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid='.$api['appid'].'&secret='.$api['secret'];
-		$json=json_decode($this->curlGet($url_get));
-		$qrcode_url='https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token='.$json->access_token;
+		$qrcode_url='https://api.weixin.qq.com/cgi-bin/message/custom/send?access_token='.get_access_token(session('YouaskService_token'));
 		$data='{
 			"touser":"'.$openid.'",
 			"msgtype":"text",

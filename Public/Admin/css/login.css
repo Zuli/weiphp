@@ -20,7 +20,7 @@ img {
     *zoom: 1;
 }
 
-/* 登录页样式
+/* 登陆页样式
 ------------------------------------------ */
 .login-main {
     margin: 0 auto;
@@ -59,11 +59,10 @@ img {
 }
 .login-logo {
     display: inline-block;
-    margin-right: 12px;
-    width: 44px;
-    height: 44px;
+    width: 54px;
+    height: 54px;
     vertical-align: top;
-    background: url(../images/login_logo.png) no-repeat 0 0;
+    background: url(../images/login_logo.png) no-repeat 0 0 ;
 }
 .login-form .check-tips {
     color: #ff0000;

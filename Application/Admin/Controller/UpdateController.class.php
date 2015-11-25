@@ -493,7 +493,7 @@ class UpdateController extends AdminController {
 	function save_store_license() {
 		$config_map ['name'] = 'WEIPHP_STORE_LICENSE';
 		$res = M ( 'config' )->where ( $config_map )->setField ( 'value', I ( 'license' ) );
-		dump($res);
-		lastsql();
+		//dump($res);
+		//lastsql();
 	}
 }

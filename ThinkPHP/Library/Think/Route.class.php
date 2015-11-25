@@ -219,7 +219,8 @@ class Route {
             $var   =   array_merge($matches,$var);
             // 解析剩余的URL参数
             if(!empty($paths)) {
-                preg_replace_callback('/(\w+)\/([^\/]+)/', function($match) use(&$var){ $var[strtolower($match[1])]=strip_tags($match[2]);}, implode('/',$paths));
+                //preg_replace_callback('/(\w+)\/([^\/]+)/', function($match) use(&$var){ $var[strtolower($match[1])]=strip_tags($match[2]);}, implode('/',$paths)); //解决参数被转成小写的问题 weiphp 20150513
+                preg_replace_callback('/(\w+)\/([^\/]+)/', function($match) use(&$var){ $var[$match[1]]=strip_tags($match[2]);}, implode('/',$paths));
             }
             // 解析路由自动传入参数
             if(is_array($route) && isset($route[1])) {

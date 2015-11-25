@@ -25,7 +25,7 @@ class AttributeController extends AdminController {
 		/* 查询条件初始化 */
 		$map ['model_id'] = $model_id;
 		
-		$list = $this->lists ( 'Attribute', $map );
+		$list = $this->lists ( 'attribute', $map );
 		int_to_string ( $list );
 		
 		// 记录当前列表页的cookie
@@ -33,6 +33,7 @@ class AttributeController extends AdminController {
 		$this->assign ( '_list', $list );
 		$this->assign ( 'model_id', $model_id );
 		$this->meta_title = '属性列表';
+		
 		$this->display ();
 	}
 	
@@ -43,7 +44,7 @@ class AttributeController extends AdminController {
 	 */
 	public function add() {
 		$model_id = I ( 'get.model_id' );
-		$model = M ( 'Model' )->field ( 'title,name,field_group' )->find ( $model_id );
+		$model = M ( 'model' )->field ( 'title,name' )->find ( $model_id );
 		$this->assign ( 'model', $model );
 		$this->assign ( 'info', array (
 				'model_id' => $model_id 
@@ -64,12 +65,12 @@ class AttributeController extends AdminController {
 		}
 		
 		/* 获取一条记录的详细数据 */
-		$Model = M ( 'Attribute' );
+		$Model = M ( 'attribute' );
 		$data = $Model->field ( true )->find ( $id );
 		if (! $data) {
 			$this->error ( $Model->getError () );
 		}
-		$model = M ( 'Model' )->field ( 'title,name,field_group' )->find ( $data ['model_id'] );
+		$model = M ( 'model' )->field ( 'title,name' )->find ( $data ['model_id'] );
 		$this->assign ( 'model', $model );
 		$this->assign ( 'info', $data );
 		$this->meta_title = '编辑属性';

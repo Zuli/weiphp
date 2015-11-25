@@ -83,7 +83,6 @@ class Page {
             }elseif(is_array($this->parameter)){
                 $parameter      =   $this->parameter;
             }elseif(empty($this->parameter)){
-                unset($_GET[C('VAR_URL_PARAMS')]);
                 $var =  !empty($_POST)?$_POST:$_GET;
                 if(empty($var)) {
                     $parameter  =   array();

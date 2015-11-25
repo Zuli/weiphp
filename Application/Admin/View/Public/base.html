@@ -37,8 +37,8 @@
         <div class="user-bar">
             <a href="javascript:;" class="user-entrance"><i class="icon-user"></i></a>
             <ul class="nav-list user-menu hidden">
-                <li class="manager">你好，<em title="{:session('user_auth.username')}">{:session('user_auth.username')}</em></li>
-                <li><a href="{:U('Home/Index/main')}">返回前台</a></li>
+                <li class="manager">你好，<em title="{$mid|get_nickname}">{$mid|get_nickname}</em></li>
+                <li><a href="{:U('Home/Index/index')}">返回前台</a></li>
                 <li><a href="{:U('User/updatePassword')}">修改密码</a></li>
                 <li><a href="{:U('User/updateNickname')}">修改昵称</a></li>
                 <li><a href="{:U('Public/logout')}">退出</a></li>
@@ -107,12 +107,17 @@
         <div class="cont-ft">
             <div class="copyright">
                 <div class="fl">感谢使用<a href="http://www.weiphp.cn" target="_blank">WeiPHP</a>管理平台</div>
-                <div class="fr">V{$Think.const.ONETHINK_VERSION}</div>
+                <div class="fr">V{:C('SYSTEM_UPDATRE_VERSION')}</div>
             </div>
         </div>
     </div>
     <!-- /内容区 -->
     <script type="text/javascript">
+	var  IMG_PATH = "__IMG__";
+	var  STATIC = "__STATIC__";
+	var  ROOT = "__ROOT__";
+	var  UPLOAD_PICTURE = "{:U('home/File/uploadPicture',array('session_id'=>session_id()))}";
+	var  UPLOAD_FILE = "{:U('File/upload',array('session_id'=>session_id()))}";
     (function(){
         var ThinkPHP = window.Think = {
             "ROOT"   : "__ROOT__", //当前网站地址
@@ -136,8 +141,8 @@
             /* 左边菜单高亮 */
             url = window.location.pathname + window.location.search;
             url = url.replace(/(\/(p)\/\d+)|(&p=\d+)|(\/(id)\/\d+)|(&id=\d+)|(\/(group)\/\d+)|(&group=\d+)/, "");
-            $subnav.find("a[href$='" + url + "']").parent().addClass("current");
-			
+            $subnav.find("a[href='" + url + "']").parent().addClass("current");
+
             /* 左边菜单显示收起 */
             $("#subnav").on("click", "h3", function(){
                 var $this = $(this);

@@ -19,8 +19,8 @@ class QrCodeModel extends Model {
 	private $appSecret;
 	private $accessToken;
 	public function _initialize() {
-		$map ['token'] = get_token ();
-		$public = M ( 'member_public' )->where ( $map )->find ();
+		$token = get_token ();
+		$public = get_token_appinfo ( $token );
 		
 		$this->appID = trim ( $public ['appid'] );
 		$this->appSecret = trim ( $public ['secret'] );
@@ -29,7 +29,7 @@ class QrCodeModel extends Model {
 	}
 	
 	// 增加二维码
-	function add_qr_code($action_name = 'QR_SCENE', $addon = '', $aim_id = '') {
+	function add_qr_code($action_name = 'QR_SCENE', $addon = '', $aim_id = '', $extra_int = '', $extra_text = '') {
 		set_time_limit ( 30 );
 		
 		$data ['scene_id'] = $this->get_scene_id ( $action_name );
@@ -40,13 +40,15 @@ class QrCodeModel extends Model {
 		$data ['addon'] = $addon;
 		$data ['aim_id'] = $aim_id;
 		$data ['action_name'] = $action_name;
+		$data ['extra_text'] = $extra_text;
+		$data ['extra_int'] = $extra_int;
 		
 		$data ['cTime'] = time ();
 		$data ['token'] = get_token ();
 		
 		$data ['qr_code'] = $this->QrcodeCreate ( $data ['scene_id'], $data ['action_name'] );
-// 		dump ( $data );
-// 		exit ();
+		// dump ( $data );
+		// exit ();
 		if (! $data ['qr_code']) {
 			return - 2; // 获取二维码失败
 		}
@@ -87,14 +89,18 @@ class QrCodeModel extends Model {
 			for($j = $start; $j < $end; $j ++) {
 				$arr [] = $j;
 			}
-			$diff = array_diff ( $arr, $ids );
+			$diff = array_diff ( ( array ) $arr, ( array ) $ids );
 			return $diff [0];
 		}
 	}
 	
 	/* 创建二维码 @param - $qrcodeID传递的参数，$qrcodeType二维码类型 默认为临时二维码 @return - 返回二维码图片地址 */
 	private function QrcodeCreate($qrcodeID, $qrcodeType = 'QR_SCENE') {
-		$tempJson = '{"expire_seconds": 1800, "action_name": "' . $qrcodeType . '", "action_info": {"scene": {"scene_id": ' . $qrcodeID . '}}}';
+		if ($qrcodeType == 'QR_LIMIT_SCENE') {
+			$tempJson = '{"action_name": "' . $qrcodeType . '", "action_info": {"scene": {"scene_id": ' . $qrcodeID . '}}}';
+		} else {
+			$tempJson = '{"expire_seconds": 1800, "action_name": "' . $qrcodeType . '", "action_info": {"scene": {"scene_id": ' . $qrcodeID . '}}}';
+		}
 		$access_token = $this->accessToken;
 		$url = "https://api.weixin.qq.com/cgi-bin/qrcode/create?access_token=" . $access_token;
 		$tempArr = json_decode ( $this->JsonPost ( $url, $tempJson ), true );
@@ -148,6 +154,6 @@ class QrCodeModel extends Model {
 	private function ErrorLogger($errMsg) {
 		$logger = fopen ( './ErrorLog.txt', 'a+' );
 		fwrite ( $logger, date ( 'Y-m-d H:i:s' ) . " Error Info : " . $errMsg . "\r\n" );
-		dump ( $errMsg );
+		// dump ( $errMsg );
 	}
 }

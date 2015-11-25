@@ -11,7 +11,7 @@
 <style type="text/css">
 *{ padding: 0; margin: 0; }
 body{ background: #fff; font-family: '微软雅黑'; color: #333; font-size: 16px; }
-.system-message{ padding: 24px 48px; }
+.system-message{ padding: 24px 48px; margin:100px auto; text-align:center}
 .system-message h1{ font-size: 100px; font-weight: normal; line-height: 120px; margin-bottom: 12px; }
 .system-message .jump{ padding-top: 10px}
 .system-message .jump a{ color: #333;}
@@ -22,10 +22,10 @@ body{ background: #fff; font-family: '微软雅黑'; color: #333; font-size: 16p
 <body>
 <div class="system-message">
 <?php if(isset($message)) {?>
-<h1>:)</h1>
+<h1><img src="Public/Home/images/jump_success.png"/></h1>
 <p class="success"><?php echo($message); ?></p>
 <?php }else{?>
-<h1>:(</h1>
+<h1><img src="Public/Home/images/jump_err.png"/></h1>
 <p class="error"><?php echo($error); ?></p>
 <?php }?>
 <p class="detail"></p>

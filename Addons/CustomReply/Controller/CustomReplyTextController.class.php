@@ -45,6 +45,9 @@ class CustomReplyTextController extends BaseController{
 			$Model = $this->checkAttr ( $Model, $model ['id'] );
 			if ($Model->create () && $Model->save ()) {
 				$this->_saveKeyword ( $model, $id, 'custom_reply_text' );
+				
+				// 清空缓存
+				method_exists ( $Model, 'clear' ) && $Model->clear ( $id, 'edit' );
 	
 				$this->success ( '保存' . $model ['title'] . '成功！', U ( 'lists?model=' . $model ['name'] ) );
 			} else {
@@ -55,7 +58,7 @@ class CustomReplyTextController extends BaseController{
 				
 			$extra = $this->getCateData ();
 			if (! empty ( $extra )) {
-				foreach ( $fields [1] as &$vo ) {
+				foreach ( $fields as &$vo ) {
 					if ($vo ['name'] == 'cate_id') {
 						$vo ['extra'] .= "\r\n" . $extra;
 					}
@@ -89,6 +92,9 @@ class CustomReplyTextController extends BaseController{
 			$Model = $this->checkAttr ( $Model, $model ['id'] );
 			if ($Model->create () && $id = $Model->add ()) {
 				$this->_saveKeyword ( $model, $id, 'custom_reply_text' );
+				
+				// 清空缓存
+				method_exists ( $Model, 'clear' ) && $Model->clear ( $id, 'edit' );
 	
 				$this->success ( '添加' . $model ['title'] . '成功！', U ( 'lists?model=' . $model ['name'] ) );
 			} else {
@@ -99,7 +105,7 @@ class CustomReplyTextController extends BaseController{
 				
 			$extra = $this->getCateData ();
 			if (! empty ( $extra )) {
-				foreach ( $fields [1] as &$vo ) {
+				foreach ( $fields as &$vo ) {
 					if ($vo ['name'] == 'cate_id') {
 						$vo ['extra'] .= "\r\n" . $extra;
 					}

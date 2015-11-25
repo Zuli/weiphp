@@ -9,7 +9,6 @@
 // | Author: luofei614<weibo.com/luofei614>
 // +----------------------------------------------------------------------
 namespace Think\Template\Driver;
-defined('THINK_PATH') or exit();
 /**
  * MobileTemplate模板引擎驱动 
  */
@@ -22,8 +21,8 @@ class Mobile {
      * @return void
      */
     public function fetch($templateFile,$var) {
-		$templateFile=substr($templateFile,strlen(THEME_PATH));
-		$var['_think_template_path']=$templateFile;
-		exit(json_encode($var));	
+        $templateFile=substr($templateFile,strlen(THEME_PATH));
+        $var['_think_template_path']=$templateFile;
+        exit(json_encode($var));	
     }
 }

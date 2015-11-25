@@ -69,48 +69,67 @@
 							</div>
 							</case>
                             <case value="picture">
-                              <div class="controls uploadrow">
-                                <input type="file" id="upload_picture_{$o_key}">
-                                <input type="hidden" name="config[{$o_key}]" id="cover_id_{$o_key}" value="{$form['value']}"/>
-                                <div class="upload-img-box">
-                                  <notempty name="form['value']">
-                                    <div class="upload-pre-item"><img width="120" height="120" src="__ROOT__{$form['value']|get_cover='path'}"/></div>
-                                  </notempty>
-                                </div>
+                               <div class="controls uploadrow2" title="点击修改图片" rel="{$o_key}">
+                                  <input type="file" id="upload_picture_{$o_key}">
+                                  <input type="hidden" name="config[{$o_key}]" id="cover_id_{$o_key}" value="{$form['value']}"/>
+                                  <div class="upload-img-box">
+                                    <notempty name="form['value']">
+                                   
+                                      <div class="upload-pre-item2"><img width="100" height="100" src="{$form['value']|get_cover_url}"/></div>
+                                      <em class="edit_img_icon">&nbsp;</em>
+                                    </notempty>
+                                    
+                                  </div>
                               </div>
-                              <script type="text/javascript">
-                                    //上传图片
-                                    /* 初始化上传插件 */
-                                    $("#upload_picture_{$o_key}").uploadify({
-                                        "height"          : 120,
-                                        "swf"             : "__STATIC__/uploadify/uploadify.swf",
-                                        "fileObjName"     : "download",
-                                        "buttonText"      : "上传图片",
-                                        "uploader"        : "{:U('home/File/uploadPicture',array('session_id'=>session_id()))}",
-                                        "width"           : 120,
-                                        'removeTimeout'	  : 1,
-                                        'fileTypeExts'	  : '*.jpg; *.png; *.gif;',
-                                        "onUploadSuccess" : uploadPicture{$o_key}
-                                    });
-                                    function uploadPicture{$o_key}(file, data){
-                                        var data = $.parseJSON(data);
-                                        var src = '';
-                                        if(data.status){
-                                            $("#cover_id_{$o_key}").val(data.id);
-                                            src = data.url || '__ROOT__' + data.path;
-                                            $("#cover_id_{$o_key}").parent().find('.upload-img-box').html(
-                                                '<div class="upload-pre-item"><img width="120" height="120" src="' + src + '"/></div>'
-                                            );
-                                        } else {
-                                            updateAlert(data.info);
-                                            setTimeout(function(){
-                                                $('#top-alert').find('button').click();
-                                                $(that).removeClass('disabled').prop('disabled',false);
-                                            },1500);
-                                        }
-                                    }
-                                    </script> 
-                            </case>                            
+                    		</case>
+                    		
+                    		 <case value="file">
+                          <div class="controls upload_file">
+                          	
+                                <input type="file" id="upload_file_{$o_key}">
+                                <input type="hidden" name="config[{$o_key}]" value="{$form['value']}"/>
+                                <div class="upload-img-box">
+                                  <present name="form.value">
+                                    <div class="upload-pre-file"><span class="upload_icon_all"></span>
+                                    {$form['value']|get_table_field=###,'id','name','File'}</div>
+                                  </present>
+                                </div>
+                             
+                          </div>
+                          <script type="text/javascript">
+								//上传图片
+							    /* 初始化上传插件 */
+								$("#upload_file_{$o_key}").uploadify({
+							        "height"          : 30,
+							        "swf"             : "__STATIC__/uploadify/uploadify.swf",
+							        "fileObjName"     : "download",
+							        "buttonText"      : "上传附件",
+							        "uploader"        : "{:U('File/upload',array('session_id'=>session_id()))}",
+							        "width"           : 120,
+							        'removeTimeout'	  : 1,
+							        "onUploadSuccess" : uploadFile{$o_key}
+							    });
+								function uploadFile{$o_key}(file, data){
+									var data = $.parseJSON(data);
+// 									console.log(data);
+							        if(data.status){
+							        	var name = "config[{$o_key}]";
+							        	$("input[name='"+name+"']").val(data.id);
+							        	$("input[name='"+name+"']").parent().find('.upload-img-box').html(
+							        		"<div class=\"upload-pre-file\"><span class=\"upload_icon_all\"></span>" + data.name + "</div>"
+							        	);
+							        } else {
+							        	updateAlert(data.info);
+							        	setTimeout(function(){
+							                $('#top-alert').find('button').click();
+							                $(this).removeClass('disabled').prop('disabled',false);
+							            },1500);
+							        }
+							    }
+								</script> 
+                        </case>
+                        
+                    		                            
 							<case value="group">
 								<ul class="tab-nav nav">
 									<volist name="form.options" id="li">
@@ -181,11 +200,10 @@
 				{$custom_config}
 			</present>
 		</empty>
-		<input type="hidden" name="id" value="{$data.id}" readonly>
-		<button type="submit" class="btn submit-btn ajax-post" target-form="form-horizontal">确 定</button>
+			<input type="hidden" name="id" value="{$data.id}" readonly>
+			<button type="submit" class="btn submit-btn ajax-post" target-form="form-horizontal">确 定</button>
 		
-	</form>
-    <include file="Addons/weixinPreview" />
+		</form>
       </div>
     </section>
  </div>
@@ -193,13 +211,10 @@
 
 <block name="script">
 <script type="text/javascript" charset="utf-8">
-	//导航高亮
-    $('.side-sub-menu').find('a[href="{:U('Addons/index')}"]').closest('li').addClass('current');
-    if($('ul.tab-nav').length){
-    	//当有tab时，返回按钮不显示
-    	$('.btn-return').hide();
-    }
 	$(function(){
+		//初始化上传图片插件
+		initUploadImg();
+		initUploadFile();
 		//支持tab
 		showTab();
 	})

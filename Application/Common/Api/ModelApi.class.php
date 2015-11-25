@@ -32,8 +32,8 @@ class ModelApi {
 
         /* 获取模型名称 */
         if(empty($list)){
-            $map   = array('status' => 1, 'extend' => 1);
-            $model = M('Model')->where($map)->field(true)->select();
+            $map   = array('status' => 1);
+            $model = M('model')->where($map)->field(true)->select();
             foreach ($model as $value) {
                 $list[$value['id']] = $value;
             }
@@ -52,7 +52,7 @@ class ModelApi {
 
     // 获取模型名称
     public static function get_model_by_id($id){
-        return $model = M('Model')->getFieldById($id,'title');
+        return $model = M('model')->getFieldById($id,'title');
     }
 
     /**
@@ -61,7 +61,7 @@ class ModelApi {
      * @param  string  $field 要获取的字段名
      * @return string         属性信息
      */
-    public static function get_model_attribute($model_id, $group = true){
+    public static function get_model_attribute($model_id){
         static $list;
 
         /* 非法ID */
@@ -77,12 +77,7 @@ class ModelApi {
         /* 获取属性 */
         if(!isset($list[$model_id])){
             $map = array('model_id'=>$model_id);
-            $extend = M('Model')->getFieldById($model_id,'extend');
-
-            if($extend){
-                $map = array('model_id'=> array("in", array($model_id, $extend)));
-            }
-            $info = M('Attribute')->where($map)->select();
+            $info = M('attribute')->where($map)->select();
             $list[$model_id] = $info;
             //S('attribute_list', $list); //更新缓存
         }
@@ -91,29 +86,7 @@ class ModelApi {
         foreach ($list[$model_id] as $value) {
             $attr[$value['name']] = $value;
         }
-
-        if($group){
-            $sort  = M('Model')->getFieldById($model_id,'field_sort');
-
-            if(empty($sort)){	//未排序
-                $group = array(1=>array_merge($attr));
-            }else{
-                $group = json_decode($sort, true);
-
-                $keys  = array_keys($group);
-                foreach ($group as &$value) {
-                    foreach ($value as $key => $val) {
-                        $value[$key] = $attr[$val];
-                        unset($attr[$val]);
-                    }
-                }
-
-                if(!empty($attr)){
-                    $group[$keys[0]] = array_merge($group[$keys[0]], $attr);
-                }
-            }
-            $attr = $group;
-        }
+		
         return $attr;
     }
 

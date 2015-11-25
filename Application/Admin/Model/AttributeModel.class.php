@@ -16,6 +16,7 @@ use Think\Model;
  */
 
 class AttributeModel extends Model {
+	protected $tableName = 'attribute';
 
     /* 自动验证规则 */
     protected $_validate = array(
@@ -88,7 +89,7 @@ class AttributeModel extends Model {
             }
         }
         //删除字段缓存文件
-        $model_name = M('Model')->field('name')->find($data['model_id']);
+        $model_name = M('model')->field('name')->find($data['model_id']);
         $cache_name = C('DB_NAME').'.'.preg_replace('/\W+|\_+/','',$model_name['name']);
         F($cache_name, null, DATA_PATH.'_fields/');
 
@@ -123,16 +124,11 @@ class AttributeModel extends Model {
      * @author huajie <banhuajie@163.com>
      */
     protected function checkTableExist($model_id){
-    	$Model = M('Model');
+    	$Model = M('model');
     	//当前操作的表
-		$model = $Model->where(array('id'=>$model_id))->field('name,extend')->find();
-
-		if($model['extend'] == 0){	//独立模型表名
-			$table_name = $this->table_name = C('DB_PREFIX').strtolower($model['name']);
-		}else{						//继承模型表名
-			$extend_model = $Model->where(array('id'=>$model['extend']))->field('name,extend')->find();
-			$table_name = $this->table_name = C('DB_PREFIX').strtolower($extend_model['name']).'_'.strtolower($model['name']);
-		}
+		$model = $Model->where(array('id'=>$model_id))->field('name')->find();
+		$table_name = $this->table_name = C('DB_PREFIX').strtolower($model['name']);
+		
 		$sql = <<<sql
 				SHOW TABLES LIKE '{$table_name}';
 sql;
@@ -168,7 +164,7 @@ ADD COLUMN `{$field['name']}`  {$field['field']} {$default} COMMENT '{$field['ti
 sql;
     	}else{
     		//新建表时是否默认新增“id主键”字段
-    		$model_info = M('Model')->field('engine_type,need_pk')->getById($field['model_id']);
+    		$model_info = M('model')->field('engine_type,need_pk')->getById($field['model_id']);
     		if($model_info['need_pk']){
     			$sql = <<<sql
 				CREATE TABLE IF NOT EXISTS `{$this->table_name}` (
@@ -208,7 +204,7 @@ sql;
      * @return boolean true 成功 ， false 失败
      * @author huajie <banhuajie@163.com>
      */
-    protected function updateField($field){
+    public function updateField($field){
     	//检查表是否存在
     	$table_exist = $this->checkTableExist($field['model_id']);
 

@@ -32,6 +32,7 @@ function begin(){
 		return false;
 	}
 	
-	window.location.href="{:U('profile','exam_id='.$info[id])}";
+	//window.location.href="{:U('profile','exam_id='.$info[id])}";  直接进入考试，项目不需要填写个人信息了
+	window.location.href="{:U('exam','exam_id='.$info[id])}";
 }
 </script>

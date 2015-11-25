@@ -23,7 +23,7 @@ function array_to_string($result) {
 	foreach ( $result as $v ) {
 		$line = '';
 		foreach ( $v as $vo ) {
-			$line .= i ( $vo ) . ',';
+			$line .= ii ( $vo ) . ',';
 		}
 		$line = rtrim ( $line, ',' );
 		
@@ -40,7 +40,7 @@ function array_to_string($result) {
  * @return <type>
  *
  */
-function i($strInput) {
+function ii($strInput) {
 	if (is_string ( $strInput )) {
 		// if(strstr($strInput, '"'))
 		$strInput = str_replace ( ',', '，', $strInput );

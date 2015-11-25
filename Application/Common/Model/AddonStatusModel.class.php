@@ -17,19 +17,20 @@ class AddonStatusModel extends Model {
 		if (empty ( $map ['token'] )) {
 			return false;
 		}
-		$info = M ( 'member_public' )->where ( $map )->find ();
+		$info = get_token_appinfo ( $map ['token'] );
 		if (! $info) {
 			$map ['uid'] = session ( 'mid' );
 			$addon_status [$addon] = intval ( $status );
 			$map ['addon_status'] = json_encode ( $addon_status );
-			$flag = M ( 'member_public' )->add ( $map );
+			$info ['id'] = M ( 'public' )->add ( $map );
 		} else {
 			$addon_status = json_decode ( $info ['addon_status'], true );
 			$addon_status [$addon] = intval ( $status );
-			$flag = M ( 'member_public' )->where ( $map )->setField ( 'addon_status', json_encode ( $addon_status ) );
+			M ( 'public' )->where ( $map )->setField ( 'addon_status', json_encode ( $addon_status ) );
 		}
-		// dump(M ( 'member_public' )->getLastSql());exit;
-		return $flag;
+		D ( 'Common/Public' )->clear ( $info ['id'] );
+		// dump(M ( 'public' )->getLastSql());exit;
+		return $info ['id'];
 	}
 	/**
 	 * 获取插件配置
@@ -41,14 +42,14 @@ class AddonStatusModel extends Model {
 		if (empty ( $map ['token'] )) {
 			return array ();
 		}
-
-		$info = M ( 'member_public' )->where ( $map )->find ();
+		
+		$info = get_token_appinfo ( $map ['token'] );
 		$token_status = json_decode ( $info ['addon_status'], true );
 		
 		// 等级权限
 		if ($info ['group_id']) {
 			$map2 ['id'] = $info ['group_id'];
-			$addon_ids = M ( 'member_public_group' )->where ( $map2 )->getField ( 'addon_status' );
+			$addon_ids = M ( 'public_group' )->where ( $map2 )->getField ( 'addon_status' );
 			if ($addon_ids) {
 				$map3 ['id'] = array (
 						'in',
@@ -66,8 +67,8 @@ class AddonStatusModel extends Model {
 			unset ( $map );
 			$map ['uid'] = get_mid ();
 			$map ['mp_id'] = $info ['id'];
-
-			$addon_ids = M ( 'member_public_link' )->where ( $map )->getField ( 'addon_status' );
+			
+			$addon_ids = M ( 'public_link' )->where ( $map )->getField ( 'addon_status' );
 			if ($addon_ids) {
 				$map3 ['id'] = array (
 						'in',
@@ -80,17 +81,17 @@ class AddonStatusModel extends Model {
 			}
 		}
 		// dump ( $token_status );
-		// dump(M ( 'member_public' )->getLastSql());exit;
+		// dump(M ( 'public' )->getLastSql());exit;
 		return $token_status;
 	}
 	
 	// 获取当前公众号已授权的插件列表
 	function getPublicAddons($mp_id) {
-		$info = M ( 'member_public' )->where ( "id='{$mp_id}'" )->find ();
+		$info = D ( 'Common/Public' )->getInfo ( $mp_id );
 		// 等级权限
 		if ($info ['group_id']) {
 			$map2 ['id'] = $info ['group_id'];
-			$addon_ids = M ( 'member_public_group' )->where ( $map2 )->getField ( 'addon_status' );
+			$addon_ids = M ( 'public_group' )->where ( $map2 )->getField ( 'addon_status' );
 			
 			if ($addon_ids) {
 				$map ['id'] = array (
@@ -100,8 +101,7 @@ class AddonStatusModel extends Model {
 			}
 		}
 		
-		$map ['type'] = 1;
-		$data = M ( 'addons' )->where ( $map )->order ( 'id DESC' )->select ();
+		$data = M ( 'Addons' )->where ( $map )->order ( 'id DESC' )->select ();
 		
 		return $data;
 	}

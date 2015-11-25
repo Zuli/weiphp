@@ -55,7 +55,7 @@
 					</tr>
 				</volist>
 				<else/>
-				<td colspan="6" class="text-center"> aOh! 暂时还没有内容! </td>
+				<td colspan="7" class="text-center"> aOh! 暂时还没有内容! </td>
 				</notempty>
 			</tbody>
 		</table>
@@ -89,6 +89,9 @@ $(function(){
 			return false;
 		}
 	});
+	 //导航高亮
+    highlight_subnav('{:U('index')}');
+	 
 	//点击排序
 	$('.list_sort').click(function(){
 		var url = $(this).attr('url');

@@ -22,7 +22,7 @@ class AddonCategoryController extends AdminController {
 	}
 	// 通用插件的列表模型
 	public function lists() {
-		parent::common_lists ( $this->model, 0, T ( 'Think/lists' ) );
+		parent::common_lists ( $this->model, 0, T ( 'Think/lists' ), 'sort asc,id desc' );
 	}
 	
 	// 通用插件的编辑模型
@@ -44,15 +44,15 @@ class AddonCategoryController extends AdminController {
 	function category() {
 		$map ['id'] = I ( 'id' );
 		if (IS_POST) {
-			M ( 'addons' )->where ( $map )->setField ( 'cate_id', I ( 'cate_id' ) );
-			$this->success ( '设置成功', U ( 'Admin/Addons/weixin' ) );
+			M('addons')->where ( $map )->setField ( 'cate_id', I ( 'cate_id' ) );
+			$this->success ( '设置成功', U ( 'Admin/Addons/index' ) );
 			exit ();
 		}
-		$data = M ( 'addons' )->where ( $map )->find ();
+		$data = M('addons')->where ( $map )->find ();
 		$this->assign ( 'data', $data );
 		// dump ( $data );
 		
-		$categorys = M ( 'addon_category' )->order ( 'sort asc, id desc' )->select ();
+		$categorys = M('addon_category')->order ( 'sort asc, id desc' )->select ();
 		$this->assign ( 'categorys', $categorys );
 		
 		$this->display ();

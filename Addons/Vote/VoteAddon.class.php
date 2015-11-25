@@ -16,7 +16,8 @@ use Common\Controller\Addon;
             'description'=>'支持文本和图片两类的投票功能',
             'status'=>1,
             'author'=>'凡星',
-            'version'=>'0.1'
+            'version'=>'0.1',
+			'has_adminlist' => 1,
         );
 
         public $admin_list = array(

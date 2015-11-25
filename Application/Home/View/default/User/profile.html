@@ -1,14 +1,12 @@
-<extend name="Base/common" />
+<extend name="Base/no_side_common" />
 <block name="header">
 </block>
 
 <block name="body">
 
 <section>
-	<ul class="tab-nav nav">
-      <li class="current"><a href="javascript:;">修改密码<span class="arrow fa fa-sort-up"></span></a></li>
-    </ul>
-	<div class="span12 tab-content" style="margin:50px">
+	<div class="span12 tab-content" style="margin:30px auto; padding:30px 50px; min-height:500px;">
+         <h4 style="line-height:50px;">修改密码</h4>
         <form class="login-form" action="__SELF__" method="post">
           <div class="control-group">
             <label class="control-label" for="inputPassword">原密码</label>
@@ -50,7 +48,6 @@
 	    	.ajaxStop(function(){
 	    		$("button:submit").removeClass("log-in").attr("disabled", false);
 	    	});
-
     	$("form").submit(function(){
     		var self = $(this);
     		$.post(self.attr("action"), self.serialize(), success, "json");
@@ -58,6 +55,8 @@
 
     		function success(data){
     			if(data.status){
+    				//$.Dialog.success('修改密码成功！');
+    				alert('修改密码成功！');
     				window.location.href = data.url;
     			} else {
     				self.find(".Validform_checktip").text(data.info);

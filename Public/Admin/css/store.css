@@ -124,8 +124,8 @@
 	margin:0
 }
 .upload-img-box .upload-pre-item {
-	width: 120px;
-	max-height: 120px;
+	width: 100px;
+	max-height: 100px;
 	overflow: hidden;
 	text-align: center;
 	cursor: pointer;
@@ -146,3 +146,10 @@
 	border: 1px dashed #ccc;
 	background-color: #fff;
 }
+.uploadrow2{
+	  position: relative;
+  z-index: 100;
+  width: 100px;
+  min-height: 100px;
+}
+.upload-img-box .upload-pre-item img{ width:100px; height:100px;}

@@ -21,19 +21,22 @@ class WeixinController extends HomeController {
 			get_token ( $data ['ToUserName'] );
 		}
 		if (! empty ( $data ['FromUserName'] )) {
-		    get_openid($data ['FromUserName']);
+			get_openid ( $data ['FromUserName'] );
 		}
 		
 		$this->token = $data ['ToUserName'];
 		
-		$this->initFollow ( $weixin, $data );
-		
 		// 记录日志
 		addWeixinLog ( $data, $GLOBALS ['HTTP_RAW_POST_DATA'] );
+		
+		// 初始化用户
+		$data ['ToUserName'] == 'gh_3c884a361561' || $this->init_follow ( $data );
 		
 		// 回复数据
 		$this->reply ( $data, $weixin );
 		
+		// 客服接口群发消息：未发送成功的消息给用户重新发
+		$this->sendOldMessage ( $data ['ToUserName'], $data ['FromUserName'] );
 		// 结束程序。防止oneThink框架的调试信息输出
 		exit ();
 	}
@@ -50,41 +53,28 @@ class WeixinController extends HomeController {
 		// 所有安装过的微信插件
 		$addon_list = ( array ) D ( 'Addons' )->getWeixinList ( false, $token_status );
 		/**
-		 * 通过微信事件来定位处理的插件
+		 * 微信事件转化成特定的关键词来处理
 		 * event可能的值：
 		 * subscribe : 关注公众号
 		 * unsubscribe : 取消关注公众号
 		 * scan : 扫描带参数二维码事件
+		 * location : 上报地理位置事件
 		 * click : 自定义菜单事件
 		 */
-		if ($data ['MsgType'] == 'event') {
-			$event = strtolower ( $data ['Event'] );
-		
-			foreach ( $addon_list as $vo ) {
-				require_once ONETHINK_ADDON_PATH . $vo ['name'] . '/Model/WeixinAddonModel.class.php';
-				$model = D ( 'Addons://' . $vo ['name'] . '/WeixinAddon' );
-				! method_exists ( $model, $event ) || $model->$event ( $data );
-			}
-			if ($event == 'subscribe') {
-				$config = getAddonConfig ( 'Wecome' );
-				if ($config ['type'] == 2) {
-					$key = $data ['Content'] = $config ['keyword'];
-				}
-			}else if ($event == 'click' && ! empty ( $data ['EventKey'] )) {
+		if ($data ['MsgType'] == 'event' || $data ['MsgType'] == 'location') {
+			$event = strtolower ( $data ['MsgType'] == 'location' ? $data ['MsgType'] : $data ['Event'] );
+			
+			if ($event == 'click' && ! empty ( $data ['EventKey'] )) {
 				$key = $data ['Content'] = $data ['EventKey'];
 			} else {
-				return true;
+				$key = $data ['Content'] = $event;
 			}
+		} else {
+			// 数据保存到消息管理中
+			M ( 'weixin_message' )->add ( $data );
 		}
-
-		// location : 上报地理位置事件 感谢网友【blue7wings】和【strivi】提供的方案
-		if ($data ['MsgType'] == 'location') {
-			$event = strtolower ( $data ['MsgType'] );
-			foreach ( $addon_list as $vo ) {
-				require_once ONETHINK_ADDON_PATH . $vo ['name'] . '/Model/WeixinAddonModel.class.php';
-				$model = D ( 'Addons://' . $vo ['name'] . '/WeixinAddon' );
-				! method_exists ( $model, $event ) || $model->$event ( $data );
-			}
+		if ($data ['ToUserName'] == 'gh_3c884a361561' || $data ['appid'] == 'wx570bc396a51b8ff8') {
+			$addons [$key] = 'PublicBind';
 		}
 		
 		// 通过获取上次缓存的用户状态来定位处理的插件
@@ -102,22 +92,76 @@ class WeixinController extends HomeController {
 			$keywordArr = $user_status ['keywordArr'];
 			S ( 'user_status_' . $openid, null );
 		}
-		
-		// 通过插件标识名、插件名或者自定义关键词来定位处理的插件
 		if (! isset ( $addons [$key] )) {
-			foreach ( $addon_list as $k => $vo ) {
-				$addons [$vo ['name']] = $k;
-				$addons [$vo ['title']] = $k;
-				
-				$path = ONETHINK_ADDON_PATH . $vo ['name'] . '/keyword.php';
-				if (file_exists ( $path )) {
-					$keywords = include $path;
-					if (isset ( $keywords [$key] )) {
-						$addons [$key] = $k;
-						$keywordArr = $keywords [$key];
+			$map ['keyword'] = $key;
+			$map ['from_type'] = array (
+					'neq',
+					9 
+			);
+			$map ['token'] = $data ['ToUserName'];
+			$map ['type'] = 'click';
+			$customMenu = M ( 'custom_menu' )->where ( $map )->order ( 'id desc' )->find ();
+			if (! empty ( $customMenu )) {
+				if ($customMenu ['addon']) {
+					$addons [$key] = $customMenu ['addon'];
+					$keywordArr ['aim_id'] = $customMenu ['target_id'];
+					$this->request_count ( $keywordArr );
+				} else if ($customMenu ['sucai_type']) {
+					$map ['token'] = get_token ();
+					$map ['openid'] = $openid;
+					$uid = M ( 'public_follow' )->where ( $map )->getField ( 'uid' );
+					switch ($customMenu ['sucai_type']) {
+						case 1 :
+							// 1:图文
+							D ( 'Common/Custom' )->replyNews ( $uid, $customMenu ['target_id'] );
+							break;
+						case 2 :
+							// 2:文本
+							$textMap ['id'] = $customMenu ['target_id'];
+							$content = M ( 'material_text' )->where ( $textMap )->getField ( 'content' );
+							D ( 'Common/Custom' )->replyText ( $uid, $content );
+							break;
+						case 3 :
+							// 3:图片
+							$textMap ['id'] = $customMenu ['target_id'];
+							D ( 'Common/Custom' )->replyImage ( $uid, $customMenu ['target_id'], 'material_image' );
+							break;
+						case 4 :
+							// 4:语音
+							D ( 'Common/Custom' )->replyVoice ( $uid, $customMenu ['target_id'], 'material_file' );
+							break;
+						case 5 :
+							// 5:视频
+							D ( 'Common/Custom' )->replyVideo ( $uid, $customMenu ['target_id'], 'material_file', '', '', '' );
+							break;
 					}
+		           exit();
 				}
 			}
+		}
+		// 通过插件标识名、插件名或者自定义关键词来定位处理的插件
+		if (! isset ( $addons [$key] )) {
+			$keyword_cache = F ( 'keyword_cache' );
+			if ($keyword_cache === false || APP_DEBUG) {
+				foreach ( $addon_list as $k => $vo ) {
+					$keyword_cache [$vo ['name']] = $k;
+					$keyword_cache [$vo ['title']] = $k;
+					
+					$path = ONETHINK_ADDON_PATH . $vo ['name'] . '/keyword.php';
+					if (file_exists ( $path )) {
+						$keywords = include $path;
+						if (! empty ( $keywords )) {
+							$keyword_cache = array_merge ( $keyword_cache, $keywords );
+						}
+					}
+					F ( 'keyword_cache', $keyword_cache );
+				}
+			}
+			foreach ( $keyword_cache as $k => $val ) {
+				$addons [$k] = $val;
+			}
+			// addWeixinLog($addons,'textman2');
+			// addWeixinLog($addons,'textman');
 		}
 		
 		// 通过精准关键词来定位处理的插件 token=0是插件安装时初始化的模糊关键词，所有公众号都可以用
@@ -131,12 +175,21 @@ class WeixinController extends HomeController {
 				'exp',
 				"='0' or token='{$this->token}'" 
 		);
-		
+		// 完全匹配
 		if (! isset ( $addons [$key] )) {
 			$like ['keyword'] = $key;
 			$like ['keyword_type'] = 0;
 			$keywordArr = M ( 'keyword' )->where ( $like )->order ( 'id desc' )->find ();
-			addWeixinLog ( M ()->getLastSql (), 'addon1' );
+			if (! empty ( $keywordArr ['addon'] )) {
+				$addons [$key] = $keywordArr ['addon'];
+				$this->request_count ( $keywordArr );
+			}
+		}
+		// 随机匹配（前提是关键词是完全匹配）
+		if (! isset ( $addons [$key] )) {
+			$like ['keyword'] = $key;
+			$like ['keyword_type'] = 5;
+			$keywordArr = M ( 'keyword' )->where ( $like )->order ( 'RAND()' )->find ();
 			if (! empty ( $keywordArr ['addon'] )) {
 				$addons [$key] = $keywordArr ['addon'];
 				$this->request_count ( $keywordArr );
@@ -146,32 +199,27 @@ class WeixinController extends HomeController {
 		if (! isset ( $addons [$key] )) {
 			unset ( $like ['keyword'] );
 			$like ['keyword_type'] = array (
-					'gt',
-					0 
+					'exp',
+					'in (1,2,3,4)' 
 			);
 			$list = M ( 'keyword' )->where ( $like )->order ( 'keyword_length desc, id desc' )->select ();
-			
 			foreach ( $list as $keywordInfo ) {
 				$this->_contain_keyword ( $keywordInfo, $key, $addons, $keywordArr );
 			}
 		}
-		addWeixinLog ( M ()->getLastSql (), 'addon2' );
 		// 通过通配符，查找默认处理方式
 		// by 肥仔聪要淡定 2014.6.8
 		if (! isset ( $addons [$key] )) {
 			unset ( $like ['keyword_type'] );
 			$like ['keyword'] = '*';
 			$keywordArr = M ( 'keyword' )->where ( $like )->order ( 'id desc' )->find ();
-			
 			if (! empty ( $keywordArr ['addon'] )) {
 				$addons [$key] = $keywordArr ['addon'];
 				$this->request_count ( $keywordArr );
 			}
 		}
-		addWeixinLog ( M ()->getLastSql (), 'addon3' );
 		// 以上都无法定位插件时，如果开启了智能聊天，则默认使用智能聊天插件
 		if (! isset ( $addons [$key] ) && isset ( $addon_list ['Chat'] )) {
-			
 			// 您问我答插件特殊处理
 			$YouaskServiceconfig = getAddonConfig ( 'YouaskService' ); // 获取后台插件的配置参数
 			if ($YouaskServiceconfig ['state'] == 1) {
@@ -181,18 +229,23 @@ class WeixinController extends HomeController {
 			}
 		}
 		
+		// 以上都无法定位插件时，如果开启了未识别回答，则默认使用未识别回答插件
+		if (! isset ( $addons [$key] ) && isset ( $addon_list ['NoAnswer'] )) {
+			$addons [$key] = 'NoAnswer';
+		}
+		
 		// 最终也无法定位到插件，终止操作
 		if (! isset ( $addons [$key] ) || ! file_exists ( ONETHINK_ADDON_PATH . $addons [$key] . '/Model/WeixinAddonModel.class.php' )) {
 			return false;
 		}
-		addWeixinLog ( $addons [$key], 'addon2' );
 		// 加载相应的插件来处理并反馈信息
 		require_once ONETHINK_ADDON_PATH . $addons [$key] . '/Model/WeixinAddonModel.class.php';
 		$model = D ( 'Addons://' . $addons [$key] . '/WeixinAddon' );
+		// addWeixinLog($keywordArr,'textmankey');
 		$model->reply ( $data, $keywordArr );
 		
 		// 运营统计
-		tongji ( $addons [$key] );
+		// tongji ( $addons [$key] );
 	}
 	
 	// 处理关键词包含的算法
@@ -235,8 +288,106 @@ class WeixinController extends HomeController {
 	
 	// 保存关键词的请求数
 	private function request_count($keywordArr) {
+		return false; // TODO 高并发下关闭此功能
 		$map ['id'] = $keywordArr ['id'];
-		M ( 'keyword' )->where ( $map )->setInc ( 'request_count' );
+		D ( 'Common/Keyword' )->where ( $map )->setInc ( 'request_count' );
+	}
+	private function init_follow($data) {
+		$info = get_token_appinfo ( $data ['ToUserName'] );
+		$config = S ( 'PUBLIC_AUTH_' . $info ['type'] );
+		if (! $config) {
+			$config = M ( 'public_auth' )->getField ( 'name,type_' . $info ['type'] . ' as val' );
+			
+			S ( 'PUBLIC_AUTH_' . $info ['type'], $config, 86400 );
+		}
+		C ( $config ); // 公众号接口权限
+		               
+		// 初始化用户信息
+		$map ['token'] = $data ['ToUserName'];
+		$map ['openid'] = $data ['FromUserName'];
+		$GLOBALS ['mid'] = $uid = D ( 'Common/Follow' )->init_follow ( $data ['FromUserName'], $data ['ToUserName'] );
+		
+		// 绑定配置
+		$config = getAddonConfig ( 'UserCenter', $map ['token'] );
+		
+		$guestAccess = strtolower ( CONTROLLER_NAME ) != 'weixin';
+		$userNeed = ($user ['uid'] > 0 && $user ['status'] < 2) || (empty ( $user ) && $guestAccess);
+		if ($config ['need_bind'] == 1 && $userNeed && C ( 'USER_OAUTH' )) {
+			unset ( $map ['uid'] );
+			$bind_url = addons_url ( 'UserCenter://Wap/bind', $map );
+			if ($config ['bind_start'] != 0 && strtolower ( $data ['Event'] ) != 'subscribe') {
+				$dao->replyText ( '请先<a href="' . $bind_url . '">绑定账号</a>再使用' );
+				exit ();
+			}
+		}
+	}
+	function downloadPic() {
+		$mediaId = I ( 'media_id' );
+		if ($mediaId) {
+			$id = down_media ( $mediaId );
+			if ($id) {
+				$this->ajaxReturn ( array (
+						'picUrl' => get_cover_url($id),
+						'id' => $id,
+						'result' => 'success' 
+				), 'JSON' );
+			} else {
+				$this->ajaxReturn ( array (
+						'id' => 0,
+						'result' => 'fail' 
+				), 'JSON' );
+			}
+		} else {
+			$this->ajaxReturn ( array (
+					'id' => 0,
+					'result' => 'fail' 
+			), 'JSON' );
+		}
+	}
+	
+	// 未发送成功的消息重新发
+	function sendOldMessage($token, $openid) {
+		$map ['ToUserName'] = $token;
+		$map ['is_send'] = 0;
+		$map ['FromUserName'] = $openid;
+		
+		$messageData = M ( 'custom_sendall' )->where ( $map )->select ();
+		$count = 0;
+		if (! empty ( $messageData )) {
+			foreach ( $messageData as $data ) {
+				if ($data ['msgType'] == 'text') {
+					// 文本
+					$result = D ( 'Common/Custom' )->replyText ( $data ['uid'], $data ['content'] );
+				} else if ($data ['msgType'] == 'news') {
+					// 图文
+					$result = D ( 'Common/Custom' )->replyNews ( $data ['uid'], $data ['news_group_id'] );
+				} else if ($data ['msgType'] == 'image') {
+					// 图片
+					$result = D ( 'Common/Custom' )->replyImage ( $data ['uid'], $data ['media_id'], '' );
+				} else if ($data ['msgType'] == 'voice') {
+					// 语言
+					$result = D ( 'Common/Custom' )->replyVoice ( $data ['uid'], $data ['media_id'], '' );
+				} else if ($data ['msgType'] == 'video') {
+					// 视频
+					$result = D ( 'Common/Custom' )->replyVoice ( $data ['uid'], $data ['media_id'], '', $data ['video_thumb'], $data ['video_title'], $data ['video_description'] );
+				}
+				
+				if ($result ['status'] == 1) {
+					$ids [$data ['id']] = $data ['id'];
+				}
+			}
+			if ($ids) {
+				$map1 ['id'] = array (
+						'in',
+						$ids 
+				);
+				$save ['is_send'] = 1;
+				$res = M ( 'custom_sendall' )->where ( $map1 )->save ( $save );
+				if ($res) {
+					$count ++;
+				}
+			}
+		}
 	}
 }
 ?>

@@ -123,7 +123,7 @@ class CategoryController extends HomeController {
 			}
 			$this->success ( '导入完成', U ( 'home/Category/lists', 'module=' . $module ) );
 		} else {
-			$fields [1] [0] = array (
+			$fields [0] = array (
 					"name" => "attach",
 					"title" => "上传文件",
 					"type" => "file",

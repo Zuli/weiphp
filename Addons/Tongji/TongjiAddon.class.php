@@ -1,26 +1,25 @@
 <?php
 
 namespace Addons\Tongji;
+
 use Common\Controller\Addon;
 
 /**
  * 运营统计插件
+ * 
  * @author 凡星
  */
-
-    class TongjiAddon extends Addon{
-
-        public $info = array(
-            'name'=>'Tongji',
-            'title'=>'运营统计',
-            'description'=>'统计每个插件使用情况',
-            'status'=>1,
-            'author'=>'凡星',
-            'version'=>'0.1',
-            'has_adminlist'=>1,
-            'type'=>1         
-        );
-
+class TongjiAddon extends Addon {
+	public $info = array (
+			'name' => 'Tongji',
+			'title' => '统计监控',
+			'description' => '统计实时参与摇电视的次数',
+			'status' => 1,
+			'author' => '凡星',
+			'version' => '0.1',
+			'has_adminlist' => 1,
+			'type' => 1 
+	);
 	public function install() {
 		$install_sql = './Addons/Tongji/install.sql';
 		if (file_exists ( $install_sql )) {
@@ -35,10 +34,8 @@ use Common\Controller\Addon;
 		}
 		return true;
 	}
-
-        //实现的weixin钩子方法
-        public function weixin($param){
-
-        }
-
-    }
+	
+	// 实现的weixin钩子方法
+	public function weixin($param) {
+	}
+}

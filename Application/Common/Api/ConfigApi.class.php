@@ -17,7 +17,7 @@ class ConfigApi {
      */
     public static function lists(){
         $map    = array('status' => 1);
-        $data   = M('Config')->where($map)->field('type,name,value')->select();
+        $data   = M('config')->where($map)->field('type,name,value')->select();
         
         $config = array();
         if($data && is_array($data)){

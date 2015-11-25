@@ -12,8 +12,13 @@ class WeixinAddonModel extends WeixinModel {
 		$map ['id'] = $keywordArr ['aim_id'];
 		$param ['token'] = get_token ();
 		$param ['openid'] = get_openid ();
-		
-		if ($keywordArr ['extra_text'] == 'custom_reply_mult') {
+		if($data['Content']=='location'){
+			$latitude = $dataArr ['Location_X'];
+			$longitude = $dataArr ['Location_Y'];
+			$pos = file_get_contents ( 'http://lbs.juhe.cn/api/getaddressbylngb?lngx=' . $latitude . '&lngy=' . $longitude );
+			$pos_ar = json_decode ( $pos, true );
+			$this->replyText ( htmlspecialchars_decode ( $pos_ar ['row'] ['result'] ['formatted_address'] ) );
+		}elseif ($keywordArr ['extra_text'] == 'custom_reply_mult') {
 			// 多图文回复
 			$mult = M ( 'custom_reply_mult' )->where ( $map )->find ();
 			$map_news ['id'] = array (
@@ -69,12 +74,7 @@ class WeixinAddonModel extends WeixinModel {
 	}
 	// 上报地理位置事件 感谢网友【blue7wings】和【strivi】提供的方案
 	public function location($dataArr) {
-		$latitude = $dataArr ['Location_X'];
-		$longitude = $dataArr ['Location_Y'];
-		$pos = file_get_contents ( 'http://lbs.juhe.cn/api/getaddressbylngb?lngx=' . $latitude . '&lngy=' . $longitude );
-		$pos_ar = json_decode ( $pos, true );
-		$this->replyText ( htmlspecialchars_decode ( $pos_ar ['row'] ['result'] ['formatted_address'] ) );
-		return true;
+
 	}
 }
         	

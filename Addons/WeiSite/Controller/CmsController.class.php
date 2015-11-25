@@ -60,7 +60,7 @@ class CmsController extends BaseController {
 			
 			$extra = $this->getCateData ();
 			if (! empty ( $extra )) {
-				foreach ( $fields [1] as &$vo ) {
+				foreach ( $fields as &$vo ) {
 					if ($vo ['name'] == 'cate_id') {
 						$vo ['extra'] .= "\r\n" . $extra;
 					}
@@ -104,7 +104,7 @@ class CmsController extends BaseController {
 			
 			$extra = $this->getCateData ();
 			if (! empty ( $extra )) {
-				foreach ( $fields [1] as &$vo ) {
+				foreach ( $fields as &$vo ) {
 					if ($vo ['name'] == 'cate_id') {
 						$vo ['extra'] .= "\r\n" . $extra;
 					}

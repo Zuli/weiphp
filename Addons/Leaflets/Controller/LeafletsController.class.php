@@ -6,7 +6,7 @@ use Home\Controller\AddonsController;
 
 class LeafletsController extends AddonsController {
 	function _initialize() {
-		parent::_initialize();
+		parent::_initialize ();
 		
 		$config = getAddonConfig ( 'Leaflets' );
 		$config ['img'] = is_numeric ( $config ['img'] ) ? get_cover_url ( $config ['img'] ) : SITE_URL . '/Addons/Leaflets/View/default/Public/qrcode_default.jpg';
@@ -28,7 +28,7 @@ class LeafletsController extends AddonsController {
 		}
 		
 		$map ['name'] = _ADDONS;
-		$addon = M ( 'Addons' )->where ( $map )->find ();
+		$addon = M ( 'addons' )->where ( $map )->find ();
 		if (! $addon)
 			$this->error ( '插件未安装' );
 		$addon_class = get_addon_class ( $addon ['name'] );
@@ -39,6 +39,7 @@ class LeafletsController extends AddonsController {
 		$addon ['custom_config'] = $data->custom_config;
 		$this->meta_title = '设置插件-' . $data->info ['title'];
 		$db_config = D ( 'Common/AddonConfig' )->get ( _ADDONS );
+		// dump ( $db_config );
 		$addon ['config'] = include $data->config_file;
 		if ($db_config) {
 			foreach ( $addon ['config'] as $key => $value ) {

@@ -25,6 +25,9 @@ class KeywordController extends HomeController {
 		
 	}
 	public function lists() {
+		if (! is_administrator ( $this->mid )) {
+			redirect ( addons_url ( 'UserCenter://UserCenter/lists' ) );
+		}
 		// $this->assign ( 'add_button', false );
 		$this->assign ( 'search_url', U ( 'lists' ) );
 		
@@ -60,7 +63,7 @@ class KeywordController extends HomeController {
 			$list_data ['_page'] = $page->show ();
 		}
 		
-		$addons = M ( 'addons' )->where ( "type=1" )->field ( 'name,title' )->select ();
+		$addons = M('addons')->where ( "type=1" )->field ( 'name,title' )->select ();
 		foreach ( $addons as $a ) {
 			$addonsArr [$a ['name']] = $a ['title'];
 		}

@@ -13,8 +13,8 @@ namespace Home\Controller;
  * 主要获取首页聚合数据
  */
 class ToolController extends HomeController {
-	var $db2 = '`update`'; // 要更新的数据库
-	var $db1 = '`dev_weiphp`'; // 源数据库
+	var $db2 = '`weiphp3.0`'; // 要更新的数据库
+	var $db1 = '`shop`'; // 源数据库
 	function index() {
 		$tables = array (
 				'wp_auth_rule' => 'name',
@@ -158,5 +158,76 @@ class ToolController extends HomeController {
 			
 			M ( 'model' )->where ( 'id=' . $vo ['id'] )->setField ( 'field_sort', $field_sort );
 		}
+	}
+	function test_cache() {
+		S ( 'test_cache', 112233 );
+		$val = S ( 'test_cache' );
+		if (! $val) {
+			echo 'cache error';
+			exit ();
+		}
+		
+		// 清文件缓存
+		rmdirr ( './Runtime/' );
+		@mkdir ( 'Runtime', 0777, true );
+		
+		$val = S ( 'test_cache' );
+		if ($val === false) {
+			echo 'File Cache';
+		} else {
+			echo 'Memcahe';
+		}
+	}
+	
+	// ********************************* 代码打包工具 ***********************************************//
+	// 打包入口文件
+	function main() {
+		$this->del_data ();
+	}
+	// 删除测试的业务数据
+	function del_data() {
+		$res = M ()->execute ( 'DELETE FROM wp_user WHERE uid!=1' );
+		dump ( $res );
+		lastsql ();
+		$res = M ()->execute ( 'DELETE FROM wp_manager_menu WHERE uid!=1' );
+		dump ( $res );
+		lastsql ();
+		$res = M ()->execute ( 'DELETE FROM wp_auth_group WHERE manager_id!=0' );
+		dump ( $res );
+		lastsql ();
+		$res = M ()->execute ( 'DELETE FROM wp_auth_group_access WHERE uid!=1' );
+		dump ( $res );
+		lastsql ();
+		
+		$arr = array (
+
+		);
+		foreach ( $arr as $t ) {
+			$res = M ()->execute ( 'DELETE FROM ' . $t );
+			dump ( $res );
+			lastsql ();
+			
+			$res = M ()->execute ( 'ALTER TABLE ' . $t . ' AUTO_INCREMENT=1' );
+			dump ( $res );
+			lastsql ();
+		}
+		
+		$tables = "'wp_user','wp_manager_menu','wp_auth_group','wp_credit_config','wp_auth_group_access'";
+		
+		$sql = "SELECT TABLE_NAME as t,COLUMN_NAME as f FROM information_schema.`COLUMNS` WHERE TABLE_SCHEMA='weiphp3.0' AND COLUMN_NAME in ('uid','manager_id','token') AND TABLE_NAME not in ($tables)";
+		$list = M ()->query ( $sql );
+		foreach ( $list as $vo ) {
+			$res = M ()->execute ( 'DELETE FROM ' . $vo ['t'] );
+			dump ( $res );
+			lastsql ();
+			
+			$res = M ()->execute ( 'ALTER TABLE ' . $vo ['t'] . ' AUTO_INCREMENT=1' );
+			dump ( $res );
+			lastsql ();
+		}
+		
+		$res = M ()->execute ( 'update wp_user set is_init=0 where uid=1' );
+		dump ( $res );
+		lastsql ();
 	}
 }

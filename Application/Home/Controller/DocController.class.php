@@ -28,8 +28,6 @@ class DocController extends HomeController {
 			$html .= '</li>';
 		}
 		$html .= '</ul>';
-		dump ( $category );
-		exit ();
 		
 		$html = '
 		<li data-id="19" data-name="index" class="active">

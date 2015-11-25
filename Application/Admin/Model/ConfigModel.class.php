@@ -15,6 +15,8 @@ use Think\Model;
  */
 
 class ConfigModel extends Model {
+	protected $tableName = 'config';
+	
     protected $_validate = array(
         array('name', 'require', '标识不能为空', self::EXISTS_VALIDATE, 'regex', self::MODEL_BOTH),
         array('name', '', '标识已经存在', self::VALUE_VALIDATE, 'unique', self::MODEL_BOTH),

@@ -8,19 +8,54 @@ class TongjiController extends AddonsController {
 	function _initialize() {
 		$act = strtolower ( _ACTION );
 		$nav = array ();
-		$res ['title'] = '7日数据';
-		$res ['url'] = U ( 'lists' );
-		$res ['class'] = $act == 'lists' ? 'current' : '';
-		$nav [] = $res;
-		
-		$res ['title'] = '月度数据';
-		$res ['url'] = U ( 'month' );
-		$res ['class'] = $act == 'month' ? 'current' : '';
-		$nav [] = $res;
-		
+		if ($act == 'lists') {
+			$res ['title'] = '摇电视统计';
+			$res ['url'] = U ( 'lists' );
+			$res ['class'] = $act == 'lists' ? 'current' : '';
+			$nav [] = $res;
+		} else {
+			$res ['title'] = '7日数据';
+			$res ['url'] = U ( 'lists' );
+			$res ['class'] = $act == 'lists' ? 'current' : '';
+			$nav [] = $res;
+			
+			$res ['title'] = '月度数据';
+			$res ['url'] = U ( 'month' );
+			$res ['class'] = $act == 'month' ? 'current' : '';
+			$nav [] = $res;
+		}
 		$this->assign ( 'nav', $nav );
 	}
 	function lists() {
+		
+		//读取公告信息
+		$noticeData = M('SystemNotice')->selectPage(3);
+		$this -> assign('noticeData',$noticeData);
+		
+		$this->display ( 'lists' );
+	}
+	function getDataByAjax() {
+		$min = I ( 'min', 60, 'intval' ) * 60;
+		$time = date ( 'YmdHi', NOW_TIME - $min );
+		$map ['publicid'] = get_token_appinfo ( '', 'id' );
+		$map ['time'] = array (
+				'gt',
+				$time 
+		);
+		// dump ( $map );
+		$list = M ( 'online_count' )->where ( $map )->limit ( 1500 )->order ( 'time asc' )->select ();
+		// lastsql();
+		foreach ( $list as $v ) {
+			$resy [] = intval ( $v ['count'] );
+			$resx [] = date ( 'H:i', $v ['time'] . '00' );
+		}
+		$resData ['x'] = $resx;
+		$resData ['y'] = $resy;
+		// echo(implode ( ',', $y ));
+		// echo json_encode ( $res );
+		$this->ajaxReturn ( $resData, 'JSON' );
+	}
+	function lists_addon() {
 		$this->assign ( 'add_button', false );
 		$this->assign ( 'del_button', false );
 		$this->assign ( 'search_button', false );
@@ -130,5 +165,12 @@ class TongjiController extends AddonsController {
 		// dump($list_data);
 		
 		$this->display ( 'lists' );
+	}
+	
+	function notice_detail(){
+		$id = I('id');
+		$notice = M('SystemNotice')->find($id);
+		$this -> assign('notice',$notice);
+		$this -> display();	
 	}
 }

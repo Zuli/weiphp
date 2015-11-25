@@ -16,16 +16,24 @@ use Think\Model;
  * @author yangweijie <yangweijiester@gmail.com>
  */
 class AddonsModel extends Model {
+	protected $tableName = 'addons';
+	
 	/**
 	 * 获取微信插件列表
 	 *
 	 * @param string $addon_dir        	
 	 */
-	public function getWeixinList($isAll = false, $token_status = array(), $is_admin=false) {
-		$where ['status'] = 1;
-		$where ['type'] = 1;
-		$list = $this->where ( $where )->select ();
-		$isAll || $token_status = D ( 'Common/AddonStatus' )->getList ($is_admin);
+	public function getWeixinList($isAll = false, $token_status = array(), $is_admin = false, $is_show = false) {
+		$list = $this->getList ();
+		
+		if ($is_show) {
+			foreach ( $list as $n => $vo ) {
+				if ($vo ['is_show'] != 1)
+					unset ( $list [$n] );
+			}
+		}
+		
+		$isAll || $token_status = D ( 'Common/AddonStatus' )->getList ( $is_admin );
 		foreach ( $list as $addon ) {
 			if (! $isAll && isset ( $token_status [$addon ['name']] ) && $token_status [$addon ['name']] < 1)
 				continue;
@@ -42,5 +50,23 @@ class AddonsModel extends Model {
 		}
 		
 		return $addons;
+	}
+	function getList($update = false) {
+		$key = "Home_Addons_getList_" . get_token ();
+		$list = S ( $key );
+		if ($list === false || $update) {
+			$map ['status'] = 1;
+			$list_res = $this->where ( $map )->select ();
+			foreach ( $list_res as $vo ) {
+				$list [$vo ['name']] = $vo;
+			}
+			S ( $key, $list );
+		}
+		
+		return $list;
+	}
+	function getInfoByName($name, $update = false) {
+		$list = $this->getList ( $update );
+		return $list [$name];
 	}
 }

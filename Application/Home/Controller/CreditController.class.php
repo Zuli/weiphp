@@ -21,11 +21,6 @@ class CreditController extends HomeController {
 		$res ['class'] = $act == 'lists' ? 'current' : '';
 		$nav [] = $res;
 		
-		$res ['title'] = '粉丝积分';
-		$res ['url'] = U ( 'credit_data' );
-		$res ['class'] = $act == 'credit_data' ? 'current' : '';
-		$nav [] = $res;
-		
 		$this->assign ( 'nav', $nav );
 	}
 	public function lists() {

@@ -39,7 +39,7 @@ class DocumentModel extends Model{
 		array('comment', 0, self::MODEL_INSERT),
 		array('extend', 0, self::MODEL_INSERT),
 		array('create_time', NOW_TIME, self::MODEL_INSERT),
-		array('reply_time', NOW_TIME, self::MODEL_INSERT),
+        //array('reply_time', NOW_TIME, self::MODEL_INSERT),
 		array('update_time', NOW_TIME, self::MODEL_BOTH),
 		array('status', 'getStatus', self::MODEL_BOTH, 'callback'),
 	);
@@ -78,10 +78,13 @@ class DocumentModel extends Model{
 	 */
 	public function detail($id){
 		/* 获取基础数据 */
-		$info = $this->field(true)->find($id);
-		if(!(is_array($info) || 1 !== $info['status'])){
-			$this->error = '文档被禁用或已删除！';
-			return false;
+        $info = $this->field(true)->find($id);
+        if ( !$info ) {
+            $this->error = '文档不存在';
+            return false;
+        }elseif(!(is_array($info)) || 1 != $info['status']){
+            $this->error = '文档被禁用或已删除！';
+            return false;
 		}
 
 		/* 获取模型数据 */
@@ -106,6 +109,8 @@ class DocumentModel extends Model{
 			'pid'		  => 0,
 			'category_id' => $info['category_id'],
 			'status'      => 1,
+            'create_time' => array('lt', NOW_TIME),
+            '_string'     => 'deadline = 0 OR deadline > ' . NOW_TIME,  			
 		);
 
 		/* 返回前一条数据 */
@@ -123,6 +128,8 @@ class DocumentModel extends Model{
 			'pid'		  => 0,
 			'category_id' => $info['category_id'],
 			'status'      => 1,
+            'create_time' => array('lt', NOW_TIME),
+            '_string'     => 'deadline = 0 OR deadline > ' . NOW_TIME,  			
 		);
 
 		/* 返回下一条数据 */
@@ -304,7 +311,10 @@ class DocumentModel extends Model{
 	 * @return object         模型对象
 	 */
 	private function logic($model){
-		return D(get_document_model($model, 'name'), 'Logic');
+        $name  = parse_name(get_document_model($model, 'name'), 1);
+        $class = is_file(MODULE_PATH . 'Logic/' . $name . 'Logic' . EXT) ? $name : 'Base';
+        $class = MODULE_NAME . '\\Logic\\' . $class . 'Logic';
+        return new $class($name);  		
 	}
 
 	/**

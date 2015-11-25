@@ -1,3 +1,4 @@
+<!-- 暂时没有用到  页面于素材包里的相同 -->
 <include file="Public/mobile_head"/>
 <link href="{:ADDON_PUBLIC_PATH}/scratch.css?v={:SITE_VERSION}" rel="stylesheet" type="text/css">
 <body id="scratch">
@@ -5,7 +6,7 @@
     	<div class="scr_top">
         	<img src="{:ADDON_PUBLIC_PATH}/top.jpg"/>
     		<div class="area">
-            	<img src="{:ADDON_PUBLIC_PATH}/area.jpg"/>
+            	<img src="{:ADDON_PUBLIC_PATH}/area.png"/>
                 <div class="scratch_area">
                 
                   <php> if ($error) { </php>
@@ -19,36 +20,43 @@
                 </div>
             </div>
         </div>
+        <if condition="$prize['count'] gt 0">
+        	<p class="repeat_tips"><notempty name="data.max_num">您还有{$prize.count}次抽奖机会，</notempty><a href="{:addons_url('Scratch://Scratch/show',array('id'=>$data[id]))}">再刮一次</a></p>
+        </if>
         <div class="block_out">
         	<div class="block_inner">
             	<h6>活动说明</h6>
-                <p>{$data.intro}</p>
+                <div class="desc">{$data.intro}</div>
             </div>
         </div>
         <!--奖项 -->
         <div class="block_out">
         	<div class="block_inner">
             	<h6>活动奖项</h6>
-                <ul class="gift_list">
-                <volist name="prizes" id="vo">
-                	<li>
-                    	<p>{$vo.title}:({$vo.num|intval}名)</p>
-                        {$vo.img|get_img_html}
-     					<span>{$vo.name}</span>                   
-                    </li>
-                 </volist>
+                <div class="desc">
+                <empty name="prizes">
+                	<p class="empty">还没有设置奖项</p>
+                <else/>
+                	<ul class="gift_list">
+                    <volist name="prizes" id="vo">
+                        <li>
+                            <p>{$vo.title}:({$vo.num|intval}名)</p>
+                            {$vo.img|get_img_html}
+                            <span>{$vo.name}</span>                   
+                        </li>
+                     </volist>
                     </ul>
+                    </empty>
                 </div>
             </div>
+        </div>
             <!--中将记录 -->
             <div class="block_out">
         		<div class="block_inner">
                     <h6>我的中奖记录</h6>
-                    <if condition="$prize['count'] gt 0">
-                    <p class="repeat_tips"><notempty name="data.max_num">您还有{$prize.count}次抽奖机会，</notempty><a href="{:addons_url('Scratch://Scratch/show',array('id'=>$data[id]))}">再刮一次</a></p>
-                    </if>
+                    
                     <empty name="my_prizes">
-                    <p class="empty-tips">您目前还没有中过奖</p>
+                    <p class="empty">您目前还没有中过奖</p>
                     <else />
                     <ul class="gift_history" id="my_gift_history">
                     <notempty name="prize.id">
@@ -72,7 +80,7 @@
         		<div class="block_inner">
                     <h6>最新中奖记录</h6>
                     <empty name="new_prizes">
-                    <p class="empty-tips">暂还没有中奖记录</p>
+                    <p class="empty">暂还没有中奖记录</p>
                     <else />
                     <ul class="gift_history">
                       <volist name="new_prizes" id="vo">
@@ -86,7 +94,7 @@
                   </empty>
                 </div>
             </div>
-            <p class="copyright">{$system_copy_right}</p>
+            <p class="copyright">{$system_copy_right}{$tongji_code}</p>
         </div>
     </div>
 <script type="text/javascript">  
@@ -210,8 +218,12 @@ function openSuccessDialog(){
 		$.Dialog.open(successHtml);
 	}
 function openErrorDialog(){
+	var p ={$prize.count|intval};
+	if(p==null){
+		p='';
+	}
 	var successHtml = "<div class='common_dialog lqcg'>"
-		+"<h6>很抱歉！没有中奖，还需继续努力</h6><notempty name='data.max_num'><p class='p_10'>你还有{$prize.count|intval}次机会。</p></notempty>"
+		+"<h6>很抱歉！没有中奖，还需继续努力</h6><notempty name='data.max_num'><p class='p_10'><center>你还有"+p+"次机会。</center></p></notempty>"
 		+"<div class='tb'><a class='btn m_15 flex_1' href='###' onClick='$.Dialog.close();'>确 定</a></div>"
 		+"</div>"
 		$.Dialog.open(successHtml);

@@ -58,6 +58,7 @@ class SnController extends AddonsController {
 		} else {
 			$data ['is_use'] = 1;
 			$data ['use_time'] = time ();
+			$data['admin_uid'] = $this->mid;
 		}
 		
 		$res = M ( $this->table )->where ( $map )->save ( $data );

@@ -5,22 +5,44 @@
 	<div class="main-title">
 		<h2>{$meta_title}</h2>
 	</div>
-	<div>
+    <div class="cf">
+		<div class="fl">
 		<a href="{:U('create', 'type='.$type)}" class="btn">快速创建</a>
-	</div>
+        <a href="{:U('admin/AddonCategory/lists')}" class="btn">分类管理</a>
+        </div>
 
+        <!-- 高级搜索 -->
+		<div class="search-form fr cf">
+            <div class="sleft">
+                <select name="group">
+                        <option value="{:U('Admin/Addons/index',array('cate_id'=>0,'title'=>I('title')))}" <eq name="$cate_id" value="0">selected</eq> >全部插件</option>
+                        <option value="{:U('Admin/Addons/index',array('cate_id'=>'-1','title'=>I('title')))}" <eq name="$cate_id" value="-1">selected</eq> >无分类插件</option>
+                    <volist name="cates" id="vo">
+                        <option value="{:U('Admin/Addons/index',array('cate_id'=>$vo['id'],'title'=>I('title')))}" <eq name="vo['id']" value="$cate_id">selected</eq> >{$vo.title}</option>
+                    </volist>
+                </select>
+            </div>
+<!--            <div class="sleft">
+                    <input type="text" name="title" class="search-input" value="{:I('title')}" placeholder="请输入插件名">
+                    <a class="sch-btn" href="javascript:;" id="search" url="{:U('index',array('cate_id'=>$cate_id))}"><i class="btn-search"></i></a>
+            </div>-->
+      </div>
+    </div>
+     <!-- 高级搜索 -->
+		
 	<!-- 数据列表 -->
 	<div class="data-table table-striped">
 		<table>
 			<thead>
 				<tr>
-					<th>名称</th>
-					<th>标识</th>
-					<th >描述</th>
-					<th width="43px">状态</th>
-					<th>作者</th>
-					<th width="43px">版本</th>
-					<th width="94px">操作</th>
+					<th width="50px">名称</th>
+					<th width="50px">标识</th>
+                    <th width="50px">分类</th>
+					<th width="50">是否在前台导航显示</th>
+					<th width="25px">状态</th>
+					<th width="50px">作者</th>
+					<th width="25px">版本</th>
+					<th width="100px">操作</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -29,12 +51,20 @@
 				<tr>
 					<td>{$vo.title}</td>
 					<td>{$vo.name}</td>
-					<td>{$vo.description}</td>
+                    <td>{$vo.cate_id}</td>
+					<td>{$vo.is_show_text}</td>
 					<td>{$vo.status_text|default="未安装"}</td>
 					<td><a target="_blank" href="{$vo.url|default='http://www.weiphp.cn'}">{$vo.author}</a></td>
 					<td>{$vo.version}</td>
-					<td>
+					<td>            
 						<empty name="vo.uninstall">
+                    <a href="{:U('admin/AddonCategory/category',array('id'=>$vo['id']))}">分类设置</a>
+                    
+							<eq name="vo.is_show" value="0">
+								<a class="ajax-get" href="{:U('set_show',array('id'=>$vo['id'],'val'=>1))}">前台显示</a>
+							<else />
+								<a class="ajax-get" href="{:U('set_show',array('id'=>$vo['id'],'val'=>0))}">前台不显示</a>
+							</eq>                        
 							<?php
 								$class	= get_addon_class($vo['name']);
 								if(!class_exists($class)){
@@ -64,7 +94,7 @@
 				</tr>
 				</volist>
 				<else/>
-				<td colspan="6" class="text-center"> aOh! 暂时还没有内容! </td>
+				<td colspan="8" class="text-center"> aOh! 暂时还没有内容! </td>
 				</notempty>
 			</tbody>
 		</table>
@@ -73,4 +103,34 @@
     <div class="page">
         {$_page}
     </div>
+</block>
+<block name="script">
+	<script src="__STATIC__/thinkbox/jquery.thinkbox.js?v={:SITE_VERSION}"></script>
+
+	<script type="text/javascript">
+	//搜索功能
+	$("#search").click(function(){
+		var url = $(this).attr('url');
+        var query  = $('.search-form').find('input').serialize();
+        query = query.replace(/(&|^)(\w*?\d*?\-*?_*?)*?=?((?=&)|(?=$))/g,'');
+        query = query.replace(/^&/g,'');
+        if( url.indexOf('?')>0 ){
+            url += '&' + query;
+        }else{
+            url += '?' + query;
+        }
+		window.location.href = url;
+	});
+	//回车搜索
+	$(".search-input").keyup(function(e){
+		if(e.keyCode === 13){
+			$("#search").click();
+			return false;
+		}
+	});
+	$('select[name=group]').change(function(){
+		location.href = this.value;
+	});	
+
+	</script>
 </block>

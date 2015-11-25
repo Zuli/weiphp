@@ -34,7 +34,7 @@ class YouaskServiceController extends BaseController{
 	protected $model;
 	public function __construct() {
 		parent::__construct ();
-		$this->model = M ( 'Model' )->getByName ( 'youaskservice_user' );
+		$this->model = M('model')->getByName ( 'youaskservice_user' );
 		$this->model || $this->error ( '模型不存在！' );
 		$this->assign ( 'model', $this->model );
 	}

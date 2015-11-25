@@ -80,7 +80,10 @@ $(function(){
 			$('#update_remind').slideDown();
 			cookie_close_version = res;
 		}
-	})	
+	});
+	
+	 //导航高亮
+    highlight_subnav('{:U('group')}');
 });
 function set_cookie_close_version(){
 	$.get("{:U('update/set_cookie_close_version')}",{cookie_close_version:cookie_close_version},function(){

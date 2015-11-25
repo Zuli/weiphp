@@ -12,10 +12,11 @@ use Think\Model;
 
 /**
  * 插件模型
- * 
+ *
  * @author yangweijie <yangweijiester@gmail.com>
  */
 class AddonsModel extends Model {
+	protected $tableName = 'addons';
 	
 	/**
 	 * 查找后置操作
@@ -28,14 +29,35 @@ class AddonsModel extends Model {
 		}
 	}
 	/* 自动验证规则 */
-	protected $_validate = array(
-			array('name', 'require', '插件标识不能为空', self::MUST_VALIDATE, 'regex', self::MODEL_BOTH),
-			array('name', '/^[a-zA-Z][\w_]{1,29}$/', '插件标识不合法', self::MUST_VALIDATE, 'regex', self::MODEL_BOTH),
-			array('name', '', '插件已安装，请勿重复安装。或者请先卸载后再安装', self::VALUE_VALIDATE, 'unique', self::MODEL_BOTH),
-	);	
+	protected $_validate = array (
+			array (
+					'name',
+					'require',
+					'插件标识不能为空',
+					self::MUST_VALIDATE,
+					'regex',
+					self::MODEL_BOTH 
+			),
+			array (
+					'name',
+					'/^[a-zA-Z][\w_]{1,29}$/',
+					'插件标识不合法',
+					self::MUST_VALIDATE,
+					'regex',
+					self::MODEL_BOTH 
+			),
+			array (
+					'name',
+					'',
+					'插件已安装，请勿重复安装。或者请先卸载后再安装',
+					self::VALUE_VALIDATE,
+					'unique',
+					self::MODEL_BOTH 
+			) 
+	);
 	/**
 	 * 文件模型自动完成
-	 * 
+	 *
 	 * @var array
 	 */
 	protected $_auto = array (
@@ -48,10 +70,10 @@ class AddonsModel extends Model {
 	
 	/**
 	 * 获取插件列表
-	 * 
+	 *
 	 * @param string $addon_dir        	
 	 */
-	public function getList($addon_dir = '', $type = 0) {
+	public function getList($addon_dir = '') {
 		if (! $addon_dir)
 			$addon_dir = ONETHINK_ADDON_PATH;
 		$dirs = array_map ( 'basename', glob ( $addon_dir . '*', GLOB_ONLYDIR ) );
@@ -64,10 +86,11 @@ class AddonsModel extends Model {
 				'in',
 				$dirs 
 		);
- 		$list = $this->where ( $where )->field ( true )->select ();
+		$list = $this->where ( $where )->field ( true )->order('id desc')->select ();
 		foreach ( $list as $addon ) {
 			$addon ['is_weixin'] = file_exists ( $addon_dir . $addon ['name'] . '/Model/WeixinAddonModel.class.php' );
 			$addon ['uninstall'] = 0;
+			$addon ['is_show_text'] = $addon ['is_show'] == 1 ? '是' : '否';
 			$addons [$addon ['name']] = $addon;
 		}
 		foreach ( $dirs as $value ) {
@@ -87,7 +110,7 @@ class AddonsModel extends Model {
 			}
 		}
 		foreach ( $addons as $key => $val ) {
-			if (($type == 1 && ! $val ['is_weixin']) || ($type == 0 && $val ['is_weixin'])) {
+			if (! $val ['is_weixin']) {
 				unset ( $addons [$key] );
 			}
 		}
@@ -109,15 +132,11 @@ class AddonsModel extends Model {
 	 */
 	public function getAdminList() {
 		$admin = array ();
-		$db_addons = $this->where ( "status=1 AND has_adminlist=1 AND type=0" )->field ( 'title,name' )->select ();
-		if ($db_addons) {
-			foreach ( $db_addons as $value ) {
-				$admin [] = array (
-						'title' => $value ['title'],
-						'url' => "Addons/adminList?name={$value['name']}" 
-				);
-			}
-		}
+		
 		return $admin;
+	}
+	function set_show($id, $val) {
+		$map ['id'] = $id;
+		return $this->where ( $map )->setField ( 'is_show', $val );
 	}
 }
